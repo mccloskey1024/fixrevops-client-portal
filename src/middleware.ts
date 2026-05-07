@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { verifyAdminSessionToken } from '@/lib/admin-session'
 
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
@@ -17,26 +18,7 @@ export function middleware(request: NextRequest) {
   if (isAdminPath || isAdminApi) {
     const adminSession = request.cookies.get('admin_session')?.value
 
-    if (!adminSession) {
-      // Redirect to login if not authenticated
-      const loginUrl = new URL('/admin/login', request.url)
-      loginUrl.searchParams.set('redirect', path)
-      return NextResponse.redirect(loginUrl)
-    }
-
-    // Validate session (simple check - in production use JWT verification)
-    try {
-      const sessionData = JSON.parse(Buffer.from(adminSession, 'base64').toString('utf-8'))
-      const expectedPassword = process.env.ADMIN_PASSWORD
-
-      if (!expectedPassword || sessionData.password !== expectedPassword) {
-        // Invalid session, redirect to login
-        const loginUrl = new URL('/admin/login', request.url)
-        loginUrl.searchParams.set('redirect', path)
-        return NextResponse.redirect(loginUrl)
-      }
-    } catch {
-      // Invalid session format, redirect to login
+    if (!verifyAdminSessionToken(adminSession)) {
       const loginUrl = new URL('/admin/login', request.url)
       loginUrl.searchParams.set('redirect', path)
       return NextResponse.redirect(loginUrl)
