@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const isAdminPath = request.nextUrl.pathname.startsWith('/admin')
-  const isAdminApi = request.nextUrl.pathname.startsWith('/api/admin')
-  const isLoginPath = request.nextUrl.pathname === '/admin/login'
+  const path = request.nextUrl.pathname
+  const isAdminPath = path.startsWith('/admin')
+  const isAdminApi = path.startsWith('/api/admin')
+  const isLoginPath = path === '/admin/login'
+  const isLoginApi = path === '/api/admin/login'
 
-  // Allow access to login page
-  if (isLoginPath) {
+  // Allow login page and login API through unauthenticated
+  if (isLoginPath || isLoginApi) {
     return NextResponse.next()
   }
 
@@ -18,7 +20,7 @@ export function middleware(request: NextRequest) {
     if (!adminSession) {
       // Redirect to login if not authenticated
       const loginUrl = new URL('/admin/login', request.url)
-      loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+      loginUrl.searchParams.set('redirect', path)
       return NextResponse.redirect(loginUrl)
     }
 
@@ -30,13 +32,13 @@ export function middleware(request: NextRequest) {
       if (!expectedPassword || sessionData.password !== expectedPassword) {
         // Invalid session, redirect to login
         const loginUrl = new URL('/admin/login', request.url)
-        loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+        loginUrl.searchParams.set('redirect', path)
         return NextResponse.redirect(loginUrl)
       }
     } catch {
       // Invalid session format, redirect to login
       const loginUrl = new URL('/admin/login', request.url)
-      loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+      loginUrl.searchParams.set('redirect', path)
       return NextResponse.redirect(loginUrl)
     }
   }
