@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { generateMagicLink } from '@/lib/magic-link'
 
 export async function GET() {
   try {
@@ -16,7 +17,15 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json(clients)
+    // Attach the signed magic link URL to each client for the admin UI.
+    // generateMagicLink signs with a fresh timestamp, so the link's 90-day
+    // window resets each time the admin dashboard loads.
+    const withLinks = clients.map((c) => ({
+      ...c,
+      magicLink: generateMagicLink(c.magicLinkToken),
+    }))
+
+    return NextResponse.json(withLinks)
   } catch (error) {
     console.error('Error fetching clients:', error)
     return NextResponse.json(
