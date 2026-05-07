@@ -10,75 +10,86 @@ datasource db {
 }
 
 model Client {
-  id                String   @id @default(cuid())
-  name              String
-  company           String
-  email             String
-  magicLinkToken    String   @unique
-  magicLinkExpiresAt DateTime
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  engagements       Engagement[]
+  id                  String       @id @default(cuid())
+  name                String
+  primaryContactName  String
+  primaryContactEmail String
+  primaryContactPhone String?
+  magicLinkToken      String       @unique
+  magicLinkExpiresAt  DateTime
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  engagements         Engagement[]
 }
 
 model Engagement {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  status      String   @default("active") // active, completed, on-hold
-  startDate   DateTime
-  endDate     DateTime?
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
-  tasks       Task[]
-  files       File[]
-  comments    Comment[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id])
+  name            String
+  description     String?
+  status          String    @default("planning") // planning, active, completed, on-hold
+  startDate       DateTime?
+  targetEndDate   DateTime?
+  hubspotPortalId String?
+  linearProjectId String?
+  tasks           Task[]
+  files           File[]
+  comments        Comment[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Task {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  status      String   @default("pending") // pending, in-progress, completed
-  dueDate     DateTime?
+  id           String     @id @default(cuid())
   engagementId String
-  engagement  Engagement @relation(fields: [engagementId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  title        String
+  description  String?
+  type         String     @default("client_action") // client_action, internal, milestone
+  status       String     @default("pending") // pending, in-progress, completed
+  dueDate      DateTime?
+  assignedTo   String?
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model File {
-  id          String   @id @default(cuid())
-  name        String
-  url         String
-  mimeType    String
-  size        Int
-  engagementId String
-  engagement  Engagement @relation(fields: [engagementId], references: [id])
-  uploadedAt  DateTime @default(now())
+  id              String     @id @default(cuid())
+  engagementId    String
+  engagement      Engagement @relation(fields: [engagementId], references: [id])
+  uploadedBy      String     // "client" or "internal"
+  storageProvider String     @default("drive") // "drive" or "s3"
+  storagePath     String
+  fileName        String
+  fileSize        Int
+  mimeType        String?
+  uploadedAt      DateTime   @default(now())
 }
 
 model Comment {
-  id           String   @id @default(cuid())
-  content      String
-  author       String   // 'admin' or 'client'
-  authorName   String
-  isInternal   Boolean  @default(false)
+  id           String     @id @default(cuid())
   engagementId String
   engagement   Engagement @relation(fields: [engagementId], references: [id])
-  createdAt    DateTime @default(now())
+  author       String     // "client" or "internal"
+  authorName   String
+  content      String
+  isInternal   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
 }
 
 model Notification {
-  id          String   @id @default(cuid())
-  type        String   // email, sms
-  recipient   String
-  subject     String?
-  body        String
-  sent        Boolean  @default(false)
-  sentAt      DateTime?
+  id           String    @id @default(cuid())
   engagementId String?
-  createdAt   DateTime @default(now())
+  taskId       String?
+  type         String    // email, sms
+  template     String?
+  recipient    String?
+  subject      String?
+  body         String?
+  scheduledFor DateTime?
+  sentAt       DateTime?
+  status       String    @default("pending") // pending, sent, failed
+  createdAt    DateTime  @default(now())
 }
