@@ -292,8 +292,9 @@ function EngagementCard({
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6 p-6">
-        <TasksPanel engagement={engagement} onChange={onChange} />
+      <div className="grid md:grid-cols-2 gap-6 p-6">
+        <TasksPanel engagement={engagement} onChange={onChange} scope="client_action" />
+        <TasksPanel engagement={engagement} onChange={onChange} scope="internal" />
         <FilesPanel engagement={engagement} onChange={onChange} />
         <CommentsPanel engagement={engagement} onChange={onChange} />
       </div>
@@ -351,8 +352,21 @@ function LinearProjectIdEditor({
   )
 }
 
-function TasksPanel({ engagement, onChange }: { engagement: Engagement; onChange: () => void }) {
+function TasksPanel({
+  engagement,
+  onChange,
+  scope,
+}: {
+  engagement: Engagement
+  onChange: () => void
+  scope: 'client_action' | 'internal'
+}) {
   const [newTitle, setNewTitle] = useState('')
+  const tasks = engagement.tasks.filter((t) =>
+    scope === 'client_action' ? t.type === 'client_action' : t.type !== 'client_action'
+  )
+  const heading = scope === 'client_action' ? 'Client action items' : 'Our work'
+  const placeholder = scope === 'client_action' ? 'New client task…' : 'New internal task…'
 
   async function addTask(e: React.FormEvent) {
     e.preventDefault()
@@ -360,7 +374,11 @@ function TasksPanel({ engagement, onChange }: { engagement: Engagement; onChange
     await fetch('/api/admin/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ engagementId: engagement.id, title: newTitle, type: 'client_action' }),
+      body: JSON.stringify({
+        engagementId: engagement.id,
+        title: newTitle,
+        type: scope === 'client_action' ? 'client_action' : 'internal',
+      }),
     })
     setNewTitle('')
     onChange()
@@ -384,9 +402,11 @@ function TasksPanel({ engagement, onChange }: { engagement: Engagement; onChange
 
   return (
     <div>
-      <h4 className="text-sm font-semibold uppercase text-gray-500 mb-2">Tasks ({engagement.tasks.length})</h4>
+      <h4 className="text-sm font-semibold uppercase text-gray-500 mb-2">
+        {heading} ({tasks.length})
+      </h4>
       <ul className="space-y-2 mb-3">
-        {engagement.tasks.map((t) => (
+        {tasks.map((t) => (
           <li key={t.id} className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -409,7 +429,7 @@ function TasksPanel({ engagement, onChange }: { engagement: Engagement; onChange
           type="text"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          placeholder="New task…"
+          placeholder={placeholder}
           className="flex-1 text-sm rounded border-gray-300"
         />
         <button type="submit" className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
