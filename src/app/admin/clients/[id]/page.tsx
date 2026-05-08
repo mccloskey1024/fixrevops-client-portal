@@ -400,8 +400,15 @@ function FilesPanel({ engagement, onChange }: { engagement: Engagement; onChange
         <span className="block px-3 py-2 text-center bg-gray-100 hover:bg-gray-200 rounded cursor-pointer text-gray-700">
           {uploading ? 'Uploading…' : 'Upload file'}
         </span>
-        <input type="file" onChange={upload} disabled={uploading} className="hidden" />
+        <input
+          type="file"
+          onChange={upload}
+          disabled={uploading}
+          className="hidden"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.md,.csv,.tsv,.json,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif,.zip,.mp4,.mov,.mp3,.wav"
+        />
       </label>
+      <p className="text-xs text-gray-500 mt-2">Max 50 MB. PDF, Office, images, zip, or short media clip.</p>
     </div>
   )
 }

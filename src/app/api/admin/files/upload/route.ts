@@ -2,10 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { put } from '@vercel/blob'
 
+// Upload constraints. Tweak these in one place if needed.
+const MAX_FILE_BYTES = 50 * 1024 * 1024 // 50 MB
+const ALLOWED_EXTENSIONS = new Set([
+  // Documents
+  'pdf',
+  'doc', 'docx',
+  'xls', 'xlsx',
+  'ppt', 'pptx',
+  'odt', 'ods', 'odp',
+  'rtf',
+  'txt', 'md', 'csv', 'tsv', 'json',
+  // Images
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif',
+  // Archives
+  'zip',
+  // Media (small clips only — capped by MAX_FILE_BYTES)
+  'mp4', 'mov', 'mp3', 'wav',
+])
+
+function getExtension(name: string): string {
+  const lastDot = name.lastIndexOf('.')
+  if (lastDot < 0 || lastDot === name.length - 1) return ''
+  return name.slice(lastDot + 1).toLowerCase()
+}
+
 // POST /api/admin/files/upload
 // Multipart form with `file`, `engagementId`, optional `uploadedBy`.
-// Stores the file in Vercel Blob (public-read), persists a `File` row pointing
-// at the returned URL.
+// Stores the file in Vercel Blob (public-read) and persists a `File` row.
 export async function POST(request: NextRequest) {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -27,6 +51,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Size guard
+    if (file.size > MAX_FILE_BYTES) {
+      const limitMb = Math.round(MAX_FILE_BYTES / (1024 * 1024))
+      return NextResponse.json(
+        { error: `File too large. Max ${limitMb} MB.` },
+        { status: 413 }
+      )
+    }
+    if (file.size === 0) {
+      return NextResponse.json({ error: 'File is empty.' }, { status: 400 })
+    }
+
+    // Extension allowlist (positive list — anything not in the set is rejected)
+    const ext = getExtension(file.name)
+    if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
+      return NextResponse.json(
+        {
+          error: `File type "${ext || 'unknown'}" is not allowed. Allowed: ${Array.from(ALLOWED_EXTENSIONS).sort().join(', ')}.`,
+        },
+        { status: 415 }
+      )
+    }
+
     // Confirm the engagement exists (also gives us the clientId for the path)
     const engagement = await prisma.engagement.findUnique({
       where: { id: engagementId },
@@ -37,7 +84,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Path scheme: clients/<clientId>/engagements/<engagementId>/<timestamp>-<filename>
-    // The timestamp prevents collisions when two uploads share a filename.
     const safeName = file.name.replaceAll('/', '_').slice(0, 200)
     const path = `clients/${engagement.clientId}/engagements/${engagement.id}/${Date.now()}-${safeName}`
 
@@ -51,7 +97,7 @@ export async function POST(request: NextRequest) {
         engagementId,
         uploadedBy,
         storageProvider: 'blob',
-        storagePath: blob.url, // full public URL — fileUrl() returns this directly
+        storagePath: blob.url,
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type || null,
