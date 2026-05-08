@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { generateMagicLinkToken, generateMagicLink } from '@/lib/magic-link'
 import { sendEmail } from '@/lib/email'
 import { welcomeEmail } from '@/lib/email-templates'
-import { createLinearProject } from '@/lib/linear'
+import { createLinearProject, createLinearIssue } from '@/lib/linear'
 import { recordOnboardedDeal } from '@/lib/hubspot'
 import { getTemplate } from '@/lib/onboarding-templates'
 
@@ -12,7 +12,9 @@ import { getTemplate } from '@/lib/onboarding-templates'
 // Single endpoint that does ALL of:
 //  1. Create Client (with magic link)
 //  2. Create Linear project (named "<clientName> — <Tier>")
-//  3. Create Engagement linked to that project, with seed tasks from the tier template
+//  3. Create Engagement with seed work split by type:
+//       • client_action tasks  → DB rows (interactive client checkboxes)
+//       • milestone / internal → Linear issues in the new project
 //  4. Create HubSpot contact + deal in the configured pipeline/stage
 //  5. Send welcome email
 // Returns a step-by-step status report so the UI can show what worked / what didn't.
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
       steps.linearProject = { ok: false, error: linearResult.error }
     }
 
-    // 3) Create the engagement with seed tasks
+    // 3) Create the engagement, split seed tasks by destination
     const engagement = await prisma.engagement.create({
       data: {
         clientId: client.id,
@@ -106,16 +108,65 @@ export async function POST(request: NextRequest) {
         startDate: new Date(),
       },
     })
-    await prisma.task.createMany({
-      data: template.seedTasks.map((t) => ({
-        engagementId: engagement.id,
-        title: t.title,
-        description: t.description ?? null,
-        type: t.type ?? 'client_action',
-        status: 'pending',
-      })),
-    })
-    steps.engagement = { ok: true, detail: `${engagement.id} (${template.seedTasks.length} tasks seeded)` }
+
+    // 3a) DB tasks: only client_action items (interactive client checkboxes)
+    const clientActionTasks = template.seedTasks.filter(
+      (t) => (t.type ?? 'client_action') === 'client_action'
+    )
+    if (clientActionTasks.length > 0) {
+      await prisma.task.createMany({
+        data: clientActionTasks.map((t) => ({
+          engagementId: engagement.id,
+          title: t.title,
+          description: t.description ?? null,
+          type: 'client_action',
+          status: 'pending',
+        })),
+      })
+    }
+    steps.engagement = {
+      ok: true,
+      detail: `${engagement.id} (${clientActionTasks.length} client task(s) seeded)`,
+    }
+
+    // 3b) Linear issues: anything else (milestone / internal) goes into the project
+    const linearSeedTasks = template.seedTasks.filter(
+      (t) => (t.type ?? 'client_action') !== 'client_action'
+    )
+    if (linearSeedTasks.length > 0) {
+      if (!linearProjectId) {
+        steps.linearMilestones = {
+          ok: false,
+          error: `Skipped — Linear project creation failed, ${linearSeedTasks.length} milestone(s) not seeded`,
+        }
+      } else {
+        const projectIdForIssues = linearProjectId
+        const results = await Promise.all(
+          linearSeedTasks.map((t) =>
+            createLinearIssue({
+              title: t.title,
+              description: t.description ?? null,
+              projectId: projectIdForIssues,
+              teamId,
+            })
+          )
+        )
+        const created = results.filter((r) => r.ok).length
+        const failed = results.length - created
+        const failureMessages = results
+          .filter((r) => !r.ok && r.error)
+          .map((r) => r.error)
+          .join('; ')
+          .slice(0, 200)
+        steps.linearMilestones =
+          failed === 0
+            ? { ok: true, detail: `${created} milestone issue(s) created in Linear` }
+            : {
+                ok: false,
+                error: `${created}/${linearSeedTasks.length} created. Failed: ${failureMessages}`,
+              }
+      }
+    }
 
     // 4) HubSpot deal + contact
     const hsResult = await recordOnboardedDeal({
@@ -166,7 +217,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       client: { id: client.id, name: client.name },
-      engagement: { id: engagement.id, name: engagement.name, tier: template.tier, tasksSeeded: template.seedTasks.length },
+      engagement: {
+        id: engagement.id,
+        name: engagement.name,
+        tier: template.tier,
+        clientTasksSeeded: clientActionTasks.length,
+        linearMilestonesSeeded: linearSeedTasks.length,
+      },
       magicLink,
       linearProjectId,
       linearProjectUrl: linearResult.ok ? linearResult.data?.url : null,
