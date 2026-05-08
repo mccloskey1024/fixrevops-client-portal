@@ -127,11 +127,9 @@ export async function createHubspotProject(
 ): Promise<HsResult<HsObject>> {
   const objectType = process.env.HUBSPOT_PROJECT_OBJECT_TYPE || '0-970'
   const props: Record<string, string> = {
-    // HubSpot's first-party Projects object uses `hs_project_name` for the
-    // title and `hs_pipeline` / `hs_pipeline_stage` for routing. If the
-    // property names differ in your account, you'll see a 400 from HubSpot
-    // pointing to the unknown property — easy to swap.
-    hs_project_name: args.name,
+    // HubSpot's first-party Projects object (0-970) uses `hs_name` for the
+    // title and `hs_pipeline` / `hs_pipeline_stage` for routing.
+    hs_name: args.name,
     hs_pipeline: args.pipelineId,
     hs_pipeline_stage: args.stageId,
   }
