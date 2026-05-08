@@ -65,7 +65,7 @@ export async function createLinearIssue(args: CreateLinearIssueArgs): Promise<Li
       },
     }
   )
-  if (!result.ok) return result
+  if (!result.ok) return { ok: false, error: result.error }
   if (!result.data?.issueCreate?.success || !result.data.issueCreate.issue) {
     return { ok: false, error: 'Linear issueCreate did not succeed' }
   }
@@ -104,7 +104,7 @@ export async function createLinearProject(
       },
     }
   )
-  if (!result.ok) return result
+  if (!result.ok) return { ok: false, error: result.error }
   if (!result.data?.projectCreate?.success || !result.data.projectCreate.project) {
     return { ok: false, error: 'Linear projectCreate did not succeed' }
   }
