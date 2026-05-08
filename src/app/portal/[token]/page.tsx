@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
 interface Task {
@@ -14,9 +14,10 @@ interface Task {
   assignedTo: string | null
 }
 
-interface File {
+interface FileRow {
   id: string
   fileName: string
+  fileSize?: number
   storagePath: string
   uploadedBy: string
   uploadedAt: string
@@ -24,6 +25,7 @@ interface File {
 
 interface Comment {
   id: string
+  author?: string
   authorName: string
   content: string
   createdAt: string
@@ -36,7 +38,7 @@ interface Engagement {
   startDate: string | null
   targetEndDate: string | null
   tasks: Task[]
-  files: File[]
+  files: FileRow[]
   comments: Comment[]
 }
 
@@ -48,32 +50,31 @@ interface ClientData {
 
 export default function PortalPage() {
   const params = useParams()
+  const token = params.token as string
   const [data, setData] = useState<ClientData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchPortalData() {
-      try {
-        const token = params.token as string
-        const response = await fetch(`/api/portal/${encodeURIComponent(token)}`)
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to load portal')
-        }
-
-        const result = await response.json()
-        setData(result)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load portal')
-      } finally {
-        setLoading(false)
+  const fetchPortalData = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/portal/${encodeURIComponent(token)}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to load portal')
       }
+      const result = await response.json()
+      setData(result)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load portal')
+    } finally {
+      setLoading(false)
     }
+  }, [token])
 
+  useEffect(() => {
     fetchPortalData()
-  }, [params.token])
+  }, [fetchPortalData])
 
   if (loading) {
     return (
@@ -114,7 +115,13 @@ export default function PortalPage() {
         ) : (
           <div className="space-y-8">
             {data.engagements.map((engagement) => (
-              <EngagementCard key={engagement.id} engagement={engagement} />
+              <EngagementCard
+                key={engagement.id}
+                engagement={engagement}
+                token={token}
+                clientName={data.name}
+                refresh={fetchPortalData}
+              />
             ))}
           </div>
         )}
@@ -123,7 +130,17 @@ export default function PortalPage() {
   )
 }
 
-function EngagementCard({ engagement }: { engagement: Engagement }) {
+function EngagementCard({
+  engagement,
+  token,
+  clientName,
+  refresh,
+}: {
+  engagement: Engagement
+  token: string
+  clientName: string
+  refresh: () => void | Promise<void>
+}) {
   const pendingTasks = engagement.tasks.filter((t) => t.status !== 'completed')
   const completedTasks = engagement.tasks.filter((t) => t.status === 'completed')
 
@@ -133,11 +150,11 @@ function EngagementCard({ engagement }: { engagement: Engagement }) {
         <h2 className="text-2xl font-semibold text-gray-900">{engagement.name}</h2>
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
           engagement.status === 'completed' ? 'bg-green-100 text-green-800' :
-          engagement.status === 'on_hold' ? 'bg-yellow-100 text-yellow-800' :
+          engagement.status === 'on_hold' || engagement.status === 'on-hold' ? 'bg-yellow-100 text-yellow-800' :
           engagement.status === 'cancelled' ? 'bg-red-100 text-red-800' :
           'bg-blue-100 text-blue-800'
         }`}>
-          {engagement.status.replace('_', ' ')}
+          {engagement.status.replace(/[_-]/g, ' ')}
         </span>
       </div>
 
@@ -204,29 +221,111 @@ function EngagementCard({ engagement }: { engagement: Engagement }) {
         </div>
       </div>
 
-      {/* Comments Section */}
-      {engagement.comments.length > 0 && (
-        <div className="mt-6 pt-6 border-t">
-          <h3 className="text-lg font-medium text-gray-900 mb-3">Messages</h3>
-          <div className="space-y-3">
-            {engagement.comments.slice(-3).map((comment) => (
+      {/* Messages Section — always shown so clients can start a thread */}
+      <div className="mt-6 pt-6 border-t">
+        <h3 className="text-lg font-medium text-gray-900 mb-3">Messages</h3>
+        {engagement.comments.length > 0 ? (
+          <div className="space-y-3 mb-4">
+            {engagement.comments.map((comment) => (
               <div key={comment.id} className="bg-gray-50 rounded p-3">
-                <p className="text-sm text-gray-900">{comment.content}</p>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{comment.content}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {comment.authorName} • {new Date(comment.createdAt).toLocaleDateString()}
+                  {comment.authorName} • {new Date(comment.createdAt).toLocaleString()}
                 </p>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-sm text-gray-500 mb-4">No messages yet — say hello below.</p>
+        )}
+        <MessageForm
+          engagementId={engagement.id}
+          token={token}
+          defaultAuthor={clientName}
+          onSent={refresh}
+        />
+      </div>
     </div>
+  )
+}
+
+function MessageForm({
+  engagementId,
+  token,
+  defaultAuthor,
+  onSent,
+}: {
+  engagementId: string
+  token: string
+  defaultAuthor: string
+  onSent: () => void | Promise<void>
+}) {
+  const [content, setContent] = useState('')
+  const [authorName, setAuthorName] = useState(defaultAuthor)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
+    if (!content.trim()) return
+    setSending(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/portal/${encodeURIComponent(token)}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          engagementId,
+          authorName: authorName || defaultAuthor,
+          content,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Failed (${res.status})`)
+      }
+      setContent('')
+      await onSent()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Send failed')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={send} className="space-y-2">
+      <input
+        type="text"
+        value={authorName}
+        onChange={(e) => setAuthorName(e.target.value)}
+        placeholder="Your name"
+        className="w-full text-sm rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+      />
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="Type a message…"
+        rows={3}
+        className="w-full text-sm rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+      />
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={sending || !content.trim()}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {sending ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+    </form>
   )
 }
 
 function TaskItem({ task }: { task: Task }) {
   const isCompleted = task.status === 'completed'
-  
+
   return (
     <div className={`flex items-start p-3 rounded border ${
       isCompleted ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
