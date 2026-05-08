@@ -31,8 +31,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Fire the welcome email and log the result. Failure here does not roll back
-    // client creation — the magic link is still copyable from the admin UI.
     const tpl = welcomeEmail({
       clientName: name,
       contactName: primaryContactName,
@@ -44,13 +42,27 @@ export async function POST(request: NextRequest) {
       ...tpl,
     })
 
+    // Loud-log to Vercel runtime logs for debugging deliverability issues
+    if (!emailResult.ok) {
+      console.error('[BREVO_FAIL]', {
+        recipient: primaryContactEmail,
+        from: process.env.BREVO_FROM_EMAIL || 'shane@fixrevops.io',
+        error: emailResult.error,
+      })
+    } else {
+      console.log('[BREVO_OK]', { messageId: emailResult.messageId, recipient: primaryContactEmail })
+    }
+
+    // Persist enough to debug after the fact: success → text body, failure → error string
     await prisma.notification.create({
       data: {
         type: 'email',
         template: 'welcome',
         recipient: primaryContactEmail,
         subject: tpl.subject,
-        body: tpl.textContent ?? null,
+        body: emailResult.ok
+          ? (tpl.textContent ?? null)
+          : `BREVO_ERROR: ${emailResult.error || 'unknown'}`,
         sentAt: emailResult.ok ? new Date() : null,
         status: emailResult.ok ? 'sent' : 'failed',
       },
