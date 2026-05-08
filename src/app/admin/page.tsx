@@ -11,13 +11,6 @@ interface Client {
   magicLinkExpiresAt: string
 }
 
-interface Engagement {
-  id: string
-  clientId: string
-  name: string
-  status: string
-}
-
 export default function AdminDashboard() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,6 +72,23 @@ export default function AdminDashboard() {
   async function handleCopyLink(link: string) {
     await navigator.clipboard.writeText(link)
     alert('Magic link copied to clipboard!')
+  }
+
+  async function handleDeleteClient(client: Client) {
+    if (!confirm(`Delete "${client.name}" and ALL of their engagements, tasks, files, and comments? This cannot be undone.`)) {
+      return
+    }
+    try {
+      const r = await fetch(`/api/admin/clients/${client.id}`, { method: 'DELETE' })
+      if (r.ok) {
+        fetchClients()
+      } else {
+        const err = await r.json().catch(() => ({}))
+        alert(`Delete failed: ${err.error || 'unknown'}`)
+      }
+    } catch {
+      alert('Delete failed (network error)')
+    }
   }
 
   if (loading) {
@@ -208,10 +218,16 @@ export default function AdminDashboard() {
                         </button>
                         <a
                           href={`/admin/clients/${client.id}`}
-                          className="text-gray-600 hover:text-gray-800"
+                          className="text-gray-600 hover:text-gray-800 mr-3"
                         >
                           Manage →
                         </a>
+                        <button
+                          onClick={() => handleDeleteClient(client)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))
