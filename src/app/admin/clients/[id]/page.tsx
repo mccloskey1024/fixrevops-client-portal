@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useState } from 'react'
 
 type Task = {
   id: string
@@ -57,6 +57,17 @@ type Client = {
   magicLinkExpiresAt: string
   magicLink: string
   engagements: Engagement[]
+}
+
+type LinearIssue = {
+  id: string
+  identifier: string
+  title: string
+  url: string
+  priority: number | null
+  stateName: string
+  stateType: string
+  labels: string[]
 }
 
 const STATUS_OPTIONS = ['planning', 'active', 'on-hold', 'completed']
@@ -294,7 +305,7 @@ function EngagementCard({
 
       <div className="grid md:grid-cols-2 gap-6 p-6">
         <TasksPanel engagement={engagement} onChange={onChange} scope="client_action" />
-        <TasksPanel engagement={engagement} onChange={onChange} scope="internal" />
+        <LinearIssuesPanel engagement={engagement} />
         <FilesPanel engagement={engagement} onChange={onChange} />
         <CommentsPanel engagement={engagement} onChange={onChange} />
       </div>
@@ -359,14 +370,11 @@ function TasksPanel({
 }: {
   engagement: Engagement
   onChange: () => void
-  scope: 'client_action' | 'internal'
+  scope: 'client_action'
 }) {
   const [newTitle, setNewTitle] = useState('')
-  const tasks = engagement.tasks.filter((t) =>
-    scope === 'client_action' ? t.type === 'client_action' : t.type !== 'client_action'
-  )
-  const heading = scope === 'client_action' ? 'Client action items' : 'Our work'
-  const placeholder = scope === 'client_action' ? 'New client task…' : 'New internal task…'
+  const tasks = engagement.tasks.filter((t) => t.type === 'client_action')
+  void scope
 
   async function addTask(e: React.FormEvent) {
     e.preventDefault()
@@ -377,7 +385,7 @@ function TasksPanel({
       body: JSON.stringify({
         engagementId: engagement.id,
         title: newTitle,
-        type: scope === 'client_action' ? 'client_action' : 'internal',
+        type: 'client_action',
       }),
     })
     setNewTitle('')
@@ -403,7 +411,7 @@ function TasksPanel({
   return (
     <div>
       <h4 className="text-sm font-semibold uppercase text-gray-500 mb-2">
-        {heading} ({tasks.length})
+        Client action items ({tasks.length})
       </h4>
       <ul className="space-y-2 mb-3">
         {tasks.map((t) => (
@@ -429,11 +437,121 @@ function TasksPanel({
           type="text"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          placeholder={placeholder}
+          placeholder="New client task…"
           className="flex-1 text-sm rounded border-gray-300"
         />
         <button type="submit" className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Add</button>
       </form>
+    </div>
+  )
+}
+
+// Live mirror of an engagement's Linear project for admin view.
+// Unlike the client portal, admin sees ALL active issues — including ones
+// labeled "Internal" and any [ClientName]-prefixed mirrors of service requests.
+// An "Internal" badge marks the ones that are hidden from the client.
+function LinearIssuesPanel({ engagement }: { engagement: Engagement }) {
+  const [issues, setIssues] = useState<LinearIssue[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [connected, setConnected] = useState<boolean>(Boolean(engagement.linearProjectId))
+
+  const load = useCallback(async () => {
+    if (!engagement.linearProjectId) {
+      setConnected(false)
+      setIssues([])
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await fetch(`/api/admin/engagements/${engagement.id}/linear-issues`)
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.error || `Failed (${r.status})`)
+      }
+      const j = (await r.json()) as { connected: boolean; issues: LinearIssue[] }
+      setConnected(j.connected)
+      setIssues(j.issues)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load')
+      setIssues([])
+    } finally {
+      setLoading(false)
+    }
+  }, [engagement.id, engagement.linearProjectId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="text-sm font-semibold uppercase text-gray-500">
+          What we&apos;re working on{issues && ` (${issues.length})`}
+        </h4>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+        >
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+
+      {!connected && (
+        <p className="text-xs text-gray-500">
+          Connect a Linear project (above) to see live issues here.
+        </p>
+      )}
+
+      {connected && error && (
+        <p className="text-xs text-red-600">Linear: {error}</p>
+      )}
+
+      {connected && !error && issues && issues.length === 0 && (
+        <p className="text-xs text-gray-500">No active issues right now.</p>
+      )}
+
+      {connected && issues && issues.length > 0 && (
+        <ul className="space-y-2">
+          {issues.map((i) => {
+            const isInternal = i.labels.includes('Internal')
+            const isStarted = i.stateType === 'started'
+            const badge = isStarted
+              ? 'bg-yellow-100 text-yellow-800'
+              : i.stateType === 'backlog'
+              ? 'bg-gray-100 text-gray-700'
+              : 'bg-blue-100 text-blue-800'
+            return (
+              <li key={i.id} className="flex items-start gap-2 text-sm">
+                <span className={`shrink-0 mt-0.5 px-2 py-0.5 rounded text-xs font-medium ${badge}`}>
+                  {i.stateName}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <a
+                    href={i.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-gray-900 hover:text-blue-700 hover:underline"
+                  >
+                    {i.title}
+                  </a>
+                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                    <span className="font-mono">{i.identifier}</span>
+                    {isInternal && (
+                      <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-medium uppercase tracking-wide">
+                        Internal
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }
