@@ -55,7 +55,8 @@ export async function findOrCreateContact(args: {
     properties: ['email', 'firstname', 'lastname', 'phone'],
     limit: 1,
   })
-  if (!search.ok) return search
+  // Construct a fresh-typed error to keep the generic return shape consistent
+  if (!search.ok) return { ok: false, error: search.error }
   if (search.data && search.data.total > 0 && search.data.results[0]) {
     return { ok: true, data: search.data.results[0] }
   }
