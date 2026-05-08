@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { google } from 'googleapis'
-import { Readable } from 'stream'
+import { put } from '@vercel/blob'
 
+// POST /api/admin/files/upload
+// Multipart form with `file`, `engagementId`, optional `uploadedBy`.
+// Stores the file in Vercel Blob (public-read), persists a `File` row pointing
+// at the returned URL.
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json(
+        { error: 'BLOB_READ_WRITE_TOKEN not configured' },
+        { status: 500 }
+      )
+    }
+
     const formData = await request.formData()
-    const file = formData.get('file') as File
-    const engagementId = formData.get('engagementId') as string
-    const uploadedBy = formData.get('uploadedBy') as string || 'internal'
+    const file = formData.get('file') as File | null
+    const engagementId = formData.get('engagementId') as string | null
+    const uploadedBy = (formData.get('uploadedBy') as string) || 'internal'
 
     if (!file || !engagementId) {
       return NextResponse.json(
@@ -17,66 +27,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Initialize Google Drive client
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_DRIVE_CREDENTIALS || '{}'),
-      scopes: ['https://www.googleapis.com/auth/drive.file'],
-    })
-
-    const drive = google.drive({ version: 'v3', auth })
-
-    // Get engagement to determine folder path
+    // Confirm the engagement exists (also gives us the clientId for the path)
     const engagement = await prisma.engagement.findUnique({
       where: { id: engagementId },
-      include: { client: true },
+      select: { id: true, clientId: true },
     })
-
     if (!engagement) {
-      return NextResponse.json(
-        { error: 'Engagement not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Engagement not found' }, { status: 404 })
     }
 
-    // Create or find folder structure (simplified: upload to root for now)
-    // TODO: Implement folder creation logic
+    // Path scheme: clients/<clientId>/engagements/<engagementId>/<timestamp>-<filename>
+    // The timestamp prevents collisions when two uploads share a filename.
+    const safeName = file.name.replaceAll('/', '_').slice(0, 200)
+    const path = `clients/${engagement.clientId}/engagements/${engagement.id}/${Date.now()}-${safeName}`
 
-    // Upload file to Google Drive
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const response = await drive.files.create({
-      requestBody: {
-        name: file.name,
-        parents: [process.env.GOOGLE_DRIVE_PORTAL_FOLDER_ID || 'root'],
-      },
-      media: {
-        mimeType: file.type,
-        body: Readable.from(buffer),
-      },
+    const blob = await put(path, file, {
+      access: 'public',
+      contentType: file.type || 'application/octet-stream',
     })
 
-    const fileId = response.data.id
-    if (!fileId) {
-      throw new Error('Failed to get file ID from Drive')
-    }
-
-    // Make file accessible to service account
-    await drive.permissions.create({
-      fileId,
-      requestBody: {
-        type: 'anyone',
-        role: 'reader',
-      },
-    })
-
-    // Save to database
     const dbFile = await prisma.file.create({
       data: {
         engagementId,
         uploadedBy,
-        storageProvider: 'drive',
-        storagePath: fileId,
+        storageProvider: 'blob',
+        storagePath: blob.url, // full public URL — fileUrl() returns this directly
         fileName: file.name,
         fileSize: file.size,
+        mimeType: file.type || null,
       },
     })
 
@@ -84,12 +62,15 @@ export async function POST(request: NextRequest) {
       id: dbFile.id,
       fileName: file.name,
       fileSize: file.size,
-      driveUrl: `https://drive.google.com/file/d/${fileId}/view`,
+      url: blob.url,
     })
   } catch (error) {
-    console.error('Error uploading file:', error)
+    console.error('Blob upload failed:', error)
     return NextResponse.json(
-      { error: 'Failed to upload file', details: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        error: 'Failed to upload file',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     )
   }
