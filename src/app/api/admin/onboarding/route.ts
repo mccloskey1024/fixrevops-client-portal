@@ -16,12 +16,14 @@ import { getTemplate } from '@/lib/onboarding-templates'
 //       • client_action tasks  → DB rows (interactive client checkboxes)
 //       • milestone / internal → Linear issues in the new project
 //  4. Create HubSpot contact + deal in the configured pipeline/stage
-//  5. Send welcome email
+//  5. Create HubSpot Project at Onboarding stage and associate to Deal + Contact
+//  6. Send welcome email
 // Returns a step-by-step status report so the UI can show what worked / what didn't.
 //
-// Failure modes are non-fatal where possible: Linear or HubSpot failure does
-// not roll back the client/engagement, since the magic link is still useful.
-// The response surfaces the error per step so admin can complete manually.
+// Failure modes are non-fatal where possible: Linear, HubSpot, or Project
+// failure does not roll back the client/engagement, since the magic link is
+// still useful. The response surfaces the error per step so admin can complete
+// manually.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -168,7 +170,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4) HubSpot deal + contact
+    // 4) HubSpot deal + contact (+ optional Project at Onboarding stage,
+    //    associated to Deal + Contact). Project failure is non-fatal.
     const hsResult = await recordOnboardedDeal({
       clientName: client.name,
       contactName: client.primaryContactName,
@@ -177,13 +180,25 @@ export async function POST(request: NextRequest) {
       tierLabel: template.label,
     })
     let hubspotDealId: string | null = null
+    let hubspotProjectId: string | null = null
     if (hsResult.ok && hsResult.data) {
       hubspotDealId = hsResult.data.dealId
+      hubspotProjectId = hsResult.data.projectId ?? null
       await prisma.engagement.update({
         where: { id: engagement.id },
-        data: { hubspotDealId },
+        data: {
+          hubspotDealId,
+          hubspotProjectId,
+        },
       })
       steps.hubspotDeal = { ok: true, detail: `dealId=${hubspotDealId} contactId=${hsResult.data.contactId}` }
+      if (hubspotProjectId) {
+        steps.hubspotProject = hsResult.data.projectError
+          ? { ok: false, error: hsResult.data.projectError }
+          : { ok: true, detail: `projectId=${hubspotProjectId}` }
+      } else if (hsResult.data.projectError) {
+        steps.hubspotProject = { ok: false, error: hsResult.data.projectError }
+      }
     } else {
       steps.hubspotDeal = { ok: false, error: hsResult.error }
     }
@@ -228,6 +243,7 @@ export async function POST(request: NextRequest) {
       linearProjectId,
       linearProjectUrl: linearResult.ok ? linearResult.data?.url : null,
       hubspotDealId,
+      hubspotProjectId,
       steps,
     })
   } catch (error) {
