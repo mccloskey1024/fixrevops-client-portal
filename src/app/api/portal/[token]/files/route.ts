@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyMagicLinkToken } from '@/lib/magic-link'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { google } from 'googleapis'
 import { Readable } from 'stream'
 
@@ -10,6 +11,10 @@ export async function POST(
 ) {
   try {
     const { token: signedToken } = await params
+
+    const blocked = enforceRateLimit(`portal:write:${signedToken}`, 10, 60_000)
+    if (blocked) return blocked
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const engagementId = formData.get('engagementId') as string

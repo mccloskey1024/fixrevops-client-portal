@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyMagicLinkToken } from '@/lib/magic-link'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
 export async function POST(
   request: NextRequest,
@@ -8,6 +9,10 @@ export async function POST(
 ) {
   try {
     const { token: signedToken } = await params
+
+    const blocked = enforceRateLimit(`portal:write:${signedToken}`, 10, 60_000)
+    if (blocked) return blocked
+
     const body = await request.json()
     const { engagementId, authorName, content } = body
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyMagicLinkToken } from '@/lib/magic-link'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
 export async function GET(
   request: NextRequest,
@@ -8,6 +9,9 @@ export async function GET(
 ) {
   try {
     const { token: signedToken } = await params
+
+    const blocked = enforceRateLimit(`portal:read:${signedToken}`, 60, 60_000)
+    if (blocked) return blocked
 
     // Verify the magic link token
     const verification = verifyMagicLinkToken(signedToken)
