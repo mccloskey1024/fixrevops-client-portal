@@ -33,14 +33,18 @@ function bytesToHex(buf: ArrayBuffer): string {
   return out
 }
 
-function hexToBytes(hex: string): Uint8Array | null {
+// Returns a plain ArrayBuffer (not a Uint8Array view) to keep TypeScript happy
+// when passing to crypto.subtle.verify, which wants a BufferSource where the
+// underlying buffer is ArrayBuffer (not ArrayBufferLike).
+function hexToArrayBuffer(hex: string): ArrayBuffer | null {
   if (hex.length === 0 || hex.length % 2 !== 0) return null
   if (!/^[0-9a-fA-F]+$/.test(hex)) return null
-  const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.substr(i * 2, 2), 16)
+  const buffer = new ArrayBuffer(hex.length / 2)
+  const view = new Uint8Array(buffer)
+  for (let i = 0; i < view.length; i++) {
+    view[i] = parseInt(hex.substr(i * 2, 2), 16)
   }
-  return bytes
+  return buffer
 }
 
 export async function createAdminSessionToken(): Promise<string> {
@@ -57,13 +61,13 @@ export async function verifyAdminSessionToken(token: string | undefined | null):
   if (parts.length !== 2) return false
   const [tsStr, signature] = parts
 
-  const sigBytes = hexToBytes(signature)
-  if (!sigBytes) return false
+  const sigBuffer = hexToArrayBuffer(signature)
+  if (!sigBuffer) return false
 
   const enc = new TextEncoder()
   const key = await getKey()
   // Web Crypto's verify does constant-time comparison internally
-  const valid = await crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(`admin:${tsStr}`))
+  const valid = await crypto.subtle.verify('HMAC', key, sigBuffer, enc.encode(`admin:${tsStr}`))
   if (!valid) return false
 
   const ts = parseInt(tsStr, 10)
