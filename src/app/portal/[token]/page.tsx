@@ -181,12 +181,18 @@ function EngagementCard({ engagement }: { engagement: Engagement }) {
           {engagement.files.length > 0 ? (
             <div className="space-y-2">
               {engagement.files.slice(0, 5).map((file) => (
-                <div key={file.id} className="flex items-center text-sm text-gray-600">
-                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <a
+                  key={file.id}
+                  href={file.storagePath}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  <svg className="w-4 h-4 mr-2 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
                   </svg>
-                  {file.fileName}
-                </div>
+                  <span className="truncate">{file.fileName}</span>
+                </a>
               ))}
               {engagement.files.length > 5 && (
                 <p className="text-sm text-gray-500">+{engagement.files.length - 5} more files</p>
