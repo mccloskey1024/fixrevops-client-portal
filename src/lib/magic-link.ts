@@ -1,14 +1,14 @@
-import crypto from 'crypto-js'
+import crypto from 'crypto'
 
 const SECRET = process.env.MAGIC_LINK_SECRET || 'default-secret-change-in-production'
 
 export function generateMagicLinkToken(): string {
-  return crypto.lib.WordArray.random(32).toString(crypto.enc.Hex)
+  return crypto.randomBytes(32).toString('hex')
 }
 
 export function signMagicLinkToken(token: string): string {
   const timestamp = Date.now()
-  const signature = crypto.HmacSHA256(`${token}:${timestamp}`, SECRET).toString(crypto.enc.Hex)
+  const signature = crypto.createHmac('sha256', SECRET).update(`${token}:${timestamp}`).digest('hex')
   return `${token}:${timestamp}:${signature}`
 }
 
@@ -18,9 +18,15 @@ export function verifyMagicLinkToken(signedToken: string): { valid: boolean; tok
     if (parts.length !== 3) return { valid: false }
 
     const [token, timestamp, signature] = parts
-    const expectedSignature = crypto.HmacSHA256(`${token}:${timestamp}`, SECRET).toString(crypto.enc.Hex)
+    const expectedSignature = crypto
+      .createHmac('sha256', SECRET)
+      .update(`${token}:${timestamp}`)
+      .digest('hex')
 
-    if (signature !== expectedSignature) {
+    // Constant-time comparison to defeat timing attacks
+    const sigBuf = Buffer.from(signature, 'hex')
+    const expBuf = Buffer.from(expectedSignature, 'hex')
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
       return { valid: false }
     }
 
