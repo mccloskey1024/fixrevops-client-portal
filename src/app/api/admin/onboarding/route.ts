@@ -17,13 +17,15 @@ import { getTemplate } from '@/lib/onboarding-templates'
 //       • milestone / internal → Linear issues in the new project
 //  4. Create HubSpot contact + deal in the configured pipeline/stage
 //  5. Create HubSpot Project at Onboarding stage and associate to Deal + Contact
+//     (Project ID surfaces in the wizard's response only — not persisted in DB,
+//     so we don't need a Prisma migration. Admin can find the Project by
+//     searching HubSpot for the client name if they need to.)
 //  6. Send welcome email
 // Returns a step-by-step status report so the UI can show what worked / what didn't.
 //
 // Failure modes are non-fatal where possible: Linear, HubSpot, or Project
 // failure does not roll back the client/engagement, since the magic link is
-// still useful. The response surfaces the error per step so admin can complete
-// manually.
+// still useful.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -171,7 +173,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 4) HubSpot deal + contact (+ optional Project at Onboarding stage,
-    //    associated to Deal + Contact). Project failure is non-fatal.
+    //    associated to Deal + Contact). Project failure is non-fatal and the
+    //    project ID is only surfaced in the response — not persisted in our DB.
     const hsResult = await recordOnboardedDeal({
       clientName: client.name,
       contactName: client.primaryContactName,
@@ -188,7 +191,6 @@ export async function POST(request: NextRequest) {
         where: { id: engagement.id },
         data: {
           hubspotDealId,
-          hubspotProjectId,
         },
       })
       steps.hubspotDeal = { ok: true, detail: `dealId=${hubspotDealId} contactId=${hsResult.data.contactId}` }
