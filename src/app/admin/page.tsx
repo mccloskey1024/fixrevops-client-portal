@@ -74,6 +74,24 @@ export default function AdminDashboard() {
     alert('Magic link copied to clipboard!')
   }
 
+  async function handleRotateLink(client: Client) {
+    if (!confirm(`Generate a NEW magic link for "${client.name}"? The current link will stop working immediately.`)) return
+    try {
+      const r = await fetch(`/api/admin/clients/${client.id}/rotate-link`, { method: 'POST' })
+      if (r.ok) {
+        const data = await r.json()
+        await navigator.clipboard.writeText(data.magicLink).catch(() => {})
+        alert(`New magic link generated and copied to clipboard:\n\n${data.magicLink}`)
+        fetchClients()
+      } else {
+        const err = await r.json().catch(() => ({}))
+        alert(`Rotate failed: ${err.error || 'unknown'}`)
+      }
+    } catch {
+      alert('Rotate failed (network error)')
+    }
+  }
+
   async function handleDeleteClient(client: Client) {
     if (!confirm(`Delete "${client.name}" and ALL of their engagements, tasks, files, and comments? This cannot be undone.`)) {
       return
@@ -209,16 +227,23 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(client.magicLinkExpiresAt).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm space-x-3">
                         <button
                           onClick={() => handleCopyLink(client.magicLink)}
-                          className="text-blue-600 hover:text-blue-800 mr-3"
+                          className="text-blue-600 hover:text-blue-800"
                         >
-                          Copy Link
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => handleRotateLink(client)}
+                          className="text-amber-600 hover:text-amber-800"
+                          title="Generate a new link and invalidate the current one"
+                        >
+                          Rotate
                         </button>
                         <a
                           href={`/admin/clients/${client.id}`}
-                          className="text-gray-600 hover:text-gray-800 mr-3"
+                          className="text-gray-600 hover:text-gray-800"
                         >
                           Manage →
                         </a>
