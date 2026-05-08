@@ -88,6 +88,8 @@ export async function POST(
       )
     }
 
+    const issue = issueResult.data
+
     const dbRequest = await prisma.serviceRequest.create({
       data: {
         engagementId,
@@ -95,8 +97,8 @@ export async function POST(
         description: description?.trim() || null,
         submittedBy: submitter,
         status: 'submitted',
-        linearIssueId: issueResult.issue?.identifier || null,
-        linearIssueUrl: issueResult.issue?.url || null,
+        linearIssueId: issue?.identifier || null,
+        linearIssueUrl: issue?.url || null,
       },
     })
 
