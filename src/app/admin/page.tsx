@@ -30,14 +30,16 @@ type OnboardingResult = {
   steps: Record<string, OnboardingStep>
 }
 
+type Mode = null | 'onboard' | 'quick'
+
 export default function AdminDashboard() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
-  const [showOnboard, setShowOnboard] = useState(false)
+  const [mode, setMode] = useState<Mode>(null)
   const [submitting, setSubmitting] = useState(false)
   const [lastResult, setLastResult] = useState<OnboardingResult | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [form, setForm] = useState({
+  const [onboardForm, setOnboardForm] = useState({
     clientName: '',
     primaryContactName: '',
     primaryContactEmail: '',
@@ -45,10 +47,14 @@ export default function AdminDashboard() {
     tier: 'audit' as Tier,
     engagementName: '',
   })
+  const [quickForm, setQuickForm] = useState({
+    name: '',
+    primaryContactName: '',
+    primaryContactEmail: '',
+    primaryContactPhone: '',
+  })
 
-  useEffect(() => {
-    fetchClients()
-  }, [])
+  useEffect(() => { fetchClients() }, [])
 
   async function fetchClients() {
     try {
@@ -61,6 +67,12 @@ export default function AdminDashboard() {
     }
   }
 
+  function setModeAndReset(next: Mode) {
+    setMode(next)
+    setLastResult(null)
+    setSubmitError(null)
+  }
+
   async function handleOnboard(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
@@ -70,7 +82,7 @@ export default function AdminDashboard() {
       const response = await fetch('/api/admin/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, engagementName: form.engagementName.trim() || undefined }),
+        body: JSON.stringify({ ...onboardForm, engagementName: onboardForm.engagementName.trim() || undefined }),
       })
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
@@ -78,7 +90,7 @@ export default function AdminDashboard() {
       }
       const data = (await response.json()) as OnboardingResult
       setLastResult(data)
-      setForm({
+      setOnboardForm({
         clientName: '',
         primaryContactName: '',
         primaryContactEmail: '',
@@ -89,6 +101,37 @@ export default function AdminDashboard() {
       fetchClients()
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Onboarding failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleQuickAdd(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const response = await fetch('/api/portal/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(quickForm),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || `Failed (${response.status})`)
+      }
+      const data = await response.json()
+      const emailNote = data.email?.sent
+        ? `\n\nWelcome email sent to ${quickForm.primaryContactEmail}.`
+        : data.email?.error
+          ? `\n\nEmail send FAILED: ${data.email.error}`
+          : ''
+      alert(`Client created.\n\nMagic link:\n${data.magicLink}${emailNote}`)
+      setQuickForm({ name: '', primaryContactName: '', primaryContactEmail: '', primaryContactPhone: '' })
+      setMode(null)
+      fetchClients()
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Quick add failed')
     } finally {
       setSubmitting(false)
     }
@@ -141,10 +184,16 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">FixRevOps Admin</h1>
           <div className="flex gap-3">
             <button
-              onClick={() => { setShowOnboard(!showOnboard); setLastResult(null); setSubmitError(null) }}
+              onClick={() => setModeAndReset(mode === 'onboard' ? null : 'onboard')}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              {showOnboard ? 'Cancel' : '+ Onboard Client'}
+              {mode === 'onboard' ? 'Cancel' : '+ Onboard Client'}
+            </button>
+            <button
+              onClick={() => setModeAndReset(mode === 'quick' ? null : 'quick')}
+              className="px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded hover:bg-gray-50"
+            >
+              {mode === 'quick' ? 'Cancel' : '+ Quick Add'}
             </button>
             <button
               onClick={async () => {
@@ -160,7 +209,8 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {showOnboard && !lastResult && (
+
+        {mode === 'onboard' && !lastResult && (
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <h2 className="text-xl font-semibold mb-4">Onboard New Client</h2>
             <form onSubmit={handleOnboard} className="space-y-4">
@@ -170,8 +220,8 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     required
-                    value={form.clientName}
-                    onChange={(e) => setForm({ ...form, clientName: e.target.value })}
+                    value={onboardForm.clientName}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, clientName: e.target.value })}
                     placeholder="Acme Corp"
                     className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
@@ -181,8 +231,8 @@ export default function AdminDashboard() {
                   <input
                     type="text"
                     required
-                    value={form.primaryContactName}
-                    onChange={(e) => setForm({ ...form, primaryContactName: e.target.value })}
+                    value={onboardForm.primaryContactName}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, primaryContactName: e.target.value })}
                     placeholder="Jane Doe"
                     className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
@@ -192,8 +242,8 @@ export default function AdminDashboard() {
                   <input
                     type="email"
                     required
-                    value={form.primaryContactEmail}
-                    onChange={(e) => setForm({ ...form, primaryContactEmail: e.target.value })}
+                    value={onboardForm.primaryContactEmail}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, primaryContactEmail: e.target.value })}
                     placeholder="jane@acme.com"
                     className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
@@ -202,8 +252,8 @@ export default function AdminDashboard() {
                   <label className="block text-sm font-medium text-gray-700">Primary Contact Phone <span className="text-gray-400">(optional)</span></label>
                   <input
                     type="tel"
-                    value={form.primaryContactPhone}
-                    onChange={(e) => setForm({ ...form, primaryContactPhone: e.target.value })}
+                    value={onboardForm.primaryContactPhone}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, primaryContactPhone: e.target.value })}
                     className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
@@ -216,9 +266,9 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       key={t.value}
-                      onClick={() => setForm({ ...form, tier: t.value })}
+                      onClick={() => setOnboardForm({ ...onboardForm, tier: t.value })}
                       className={`text-left rounded-lg border p-4 transition ${
-                        form.tier === t.value
+                        onboardForm.tier === t.value
                           ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
                           : 'border-gray-300 hover:border-gray-400'
                       }`}
@@ -236,9 +286,9 @@ export default function AdminDashboard() {
                 </label>
                 <input
                   type="text"
-                  value={form.engagementName}
-                  onChange={(e) => setForm({ ...form, engagementName: e.target.value })}
-                  placeholder={`${form.clientName || 'Client Name'} — ${TIER_OPTIONS.find(t => t.value === form.tier)?.label}`}
+                  value={onboardForm.engagementName}
+                  onChange={(e) => setOnboardForm({ ...onboardForm, engagementName: e.target.value })}
+                  placeholder={`${onboardForm.clientName || 'Client Name'} — ${TIER_OPTIONS.find(t => t.value === onboardForm.tier)?.label}`}
                   className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
@@ -248,7 +298,7 @@ export default function AdminDashboard() {
                 <ul className="list-disc list-inside space-y-0.5">
                   <li>Create the client and generate a magic link</li>
                   <li>Create a matching Linear project under the Dijitlcraft team</li>
-                  <li>Seed the engagement with the {TIER_OPTIONS.find(t => t.value === form.tier)?.label} task template</li>
+                  <li>Seed the engagement with the {TIER_OPTIONS.find(t => t.value === onboardForm.tier)?.label} task template</li>
                   <li>Create a closed-won HubSpot deal and contact</li>
                   <li>Send the welcome email with the portal link</li>
                 </ul>
@@ -266,6 +316,72 @@ export default function AdminDashboard() {
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Onboarding…' : 'Onboard Client'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {mode === 'quick' && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-1">Quick Add Client</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Creates a client + magic link and sends the welcome email. No Linear project, HubSpot deal, or seeded tasks. Add an engagement manually from the client&apos;s management page later.
+            </p>
+            <form onSubmit={handleQuickAdd} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Client / Company Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={quickForm.name}
+                    onChange={(e) => setQuickForm({ ...quickForm, name: e.target.value })}
+                    className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Primary Contact Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={quickForm.primaryContactName}
+                    onChange={(e) => setQuickForm({ ...quickForm, primaryContactName: e.target.value })}
+                    className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Primary Contact Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={quickForm.primaryContactEmail}
+                    onChange={(e) => setQuickForm({ ...quickForm, primaryContactEmail: e.target.value })}
+                    className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Primary Contact Phone <span className="text-gray-400">(optional)</span></label>
+                  <input
+                    type="tel"
+                    value={quickForm.primaryContactPhone}
+                    onChange={(e) => setQuickForm({ ...quickForm, primaryContactPhone: e.target.value })}
+                    className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {submitError && (
+                <div className="text-sm text-red-600 bg-red-50 rounded p-3">
+                  Quick add failed: {submitError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Adding…' : 'Add Client'}
               </button>
             </form>
           </div>
@@ -320,7 +436,7 @@ export default function AdminDashboard() {
               </p>
             </div>
             <button
-              onClick={() => { setLastResult(null); setShowOnboard(false) }}
+              onClick={() => { setLastResult(null); setMode(null) }}
               className="mt-4 px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
             >
               Done
@@ -347,7 +463,7 @@ export default function AdminDashboard() {
                 {clients.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
-                      No clients yet. Click <strong>+ Onboard Client</strong> to get started.
+                      No clients yet. Click <strong>+ Onboard Client</strong> for the full flow, or <strong>+ Quick Add</strong> for a minimal entry.
                     </td>
                   </tr>
                 ) : (
