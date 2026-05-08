@@ -27,8 +27,8 @@ export const TEMPLATES: Record<Tier, TierTemplate> = {
       'A full diagnostic of your revenue operations stack — finding leaks in the funnel, broken handoffs, and missed opportunities. Delivered in 1–2 weeks.',
     seedTasks: [
       {
-        title: 'Provide read-only access to HubSpot and/or Salesforce',
-        description: 'Add Shane (shane@fixrevops.io) as a read-only user in your CRM systems so the audit can begin.',
+        title: 'Provide superadmin access to HubSpot',
+        description: 'Add Shane (shane@fixrevops.io) as a Super Admin user in HubSpot so the audit can begin. If Salesforce is in scope, add read-only access there too.',
         type: 'client_action',
       },
       {
