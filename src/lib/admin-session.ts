@@ -1,44 +1,70 @@
-// Signed admin session tokens. The token attests "this user successfully
-// logged in at time X" — it does NOT contain the password. Tokens are signed
-// with MAGIC_LINK_SECRET (reused) so an attacker who steals a cookie cannot
-// forge a new one without knowing the secret.
+// Signed admin session tokens. Token attests "this user successfully logged in
+// at time X" — it does NOT contain the password. Signed with MAGIC_LINK_SECRET
+// (reused). An attacker who steals a cookie cannot forge a new one without the
+// secret.
+//
+// Implementation note: uses Web Crypto (globalThis.crypto.subtle) so the same
+// code runs in both the Node runtime (login/logout API routes) and the Edge
+// runtime (Next.js middleware). Functions are async because Web Crypto is.
 
-import crypto from 'crypto'
-
-const SECRET = process.env.MAGIC_LINK_SECRET || 'default-secret-change-in-production'
+const SECRET_TEXT = process.env.MAGIC_LINK_SECRET || 'default-secret-change-in-production'
 const MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24 hours, matches cookie maxAge
 
-export function createAdminSessionToken(): string {
-  const timestamp = Date.now()
-  const signature = crypto
-    .createHmac('sha256', SECRET)
-    .update(`admin:${timestamp}`)
-    .digest('hex')
-  return `${timestamp}:${signature}`
+let _keyPromise: Promise<CryptoKey> | null = null
+function getKey(): Promise<CryptoKey> {
+  if (_keyPromise) return _keyPromise
+  const enc = new TextEncoder()
+  _keyPromise = crypto.subtle.importKey(
+    'raw',
+    enc.encode(SECRET_TEXT),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign', 'verify']
+  )
+  return _keyPromise
 }
 
-export function verifyAdminSessionToken(token: string | undefined | null): boolean {
+function bytesToHex(buf: ArrayBuffer): string {
+  const arr = new Uint8Array(buf)
+  let out = ''
+  for (let i = 0; i < arr.length; i++) {
+    out += arr[i].toString(16).padStart(2, '0')
+  }
+  return out
+}
+
+function hexToBytes(hex: string): Uint8Array | null {
+  if (hex.length === 0 || hex.length % 2 !== 0) return null
+  if (!/^[0-9a-fA-F]+$/.test(hex)) return null
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16)
+  }
+  return bytes
+}
+
+export async function createAdminSessionToken(): Promise<string> {
+  const timestamp = Date.now()
+  const enc = new TextEncoder()
+  const key = await getKey()
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`admin:${timestamp}`))
+  return `${timestamp}:${bytesToHex(sig)}`
+}
+
+export async function verifyAdminSessionToken(token: string | undefined | null): Promise<boolean> {
   if (!token) return false
   const parts = token.split(':')
   if (parts.length !== 2) return false
   const [tsStr, signature] = parts
 
-  const expected = crypto
-    .createHmac('sha256', SECRET)
-    .update(`admin:${tsStr}`)
-    .digest('hex')
+  const sigBytes = hexToBytes(signature)
+  if (!sigBytes) return false
 
-  // Constant-time comparison
-  let sigBuf: Buffer, expBuf: Buffer
-  try {
-    sigBuf = Buffer.from(signature, 'hex')
-    expBuf = Buffer.from(expected, 'hex')
-  } catch {
-    return false
-  }
-  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-    return false
-  }
+  const enc = new TextEncoder()
+  const key = await getKey()
+  // Web Crypto's verify does constant-time comparison internally
+  const valid = await crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(`admin:${tsStr}`))
+  if (!valid) return false
 
   const ts = parseInt(tsStr, 10)
   if (!Number.isFinite(ts)) return false

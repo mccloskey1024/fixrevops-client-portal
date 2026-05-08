@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid password' }, { status: 401 })
     }
 
-    // Issue a signed session token (timestamp+HMAC). The password is NOT in the cookie.
-    const sessionToken = createAdminSessionToken()
+    // Issue a signed session token (timestamp+HMAC). Password is NOT in cookie.
+    const sessionToken = await createAdminSessionToken()
 
     const response = NextResponse.json({ success: true })
     response.cookies.set('admin_session', sessionToken, {
