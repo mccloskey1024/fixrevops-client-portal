@@ -154,9 +154,6 @@ function EngagementCard({
   clientName: string
   refresh: () => void | Promise<void>
 }) {
-  const pendingTasks = engagement.tasks.filter((t) => t.status !== 'completed')
-  const completedTasks = engagement.tasks.filter((t) => t.status === 'completed')
-
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
@@ -179,30 +176,16 @@ function EngagementCard({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Tasks Section */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-3">Tasks</h3>
-          {pendingTasks.length > 0 ? (
-            <div className="space-y-2">
-              {pendingTasks.map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">All tasks completed!</p>
-          )}
-          {completedTasks.length > 0 && (
-            <details className="mt-4">
-              <summary className="text-sm text-gray-500 cursor-pointer">
-                {completedTasks.length} completed task{completedTasks.length !== 1 ? 's' : ''}
-              </summary>
-              <div className="space-y-2 mt-2">
-                {completedTasks.map((task) => (
-                  <TaskItem key={task.id} task={task} />
-                ))}
-              </div>
-            </details>
-          )}
+        {/* Tasks Section — split into client action items vs admin work */}
+        <div className="space-y-5">
+          <ClientActionList
+            tasks={engagement.tasks.filter((t) => t.type === 'client_action')}
+            token={token}
+            onChange={refresh}
+          />
+          <AdminWorkList
+            tasks={engagement.tasks.filter((t) => t.type !== 'client_action')}
+          />
         </div>
 
         {/* Files Section */}
@@ -521,29 +504,133 @@ function RequestForm({
   )
 }
 
-function TaskItem({ task }: { task: Task }) {
-  const isCompleted = task.status === 'completed'
+function ClientActionList({
+  tasks,
+  token,
+  onChange,
+}: {
+  tasks: Task[]
+  token: string
+  onChange: () => void | Promise<void>
+}) {
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
+
+  async function toggle(task: Task) {
+    if (busyIds.has(task.id)) return
+    setBusyIds((s) => new Set(s).add(task.id))
+    try {
+      const targetCompleted = task.status !== 'completed'
+      const res = await fetch(`/api/portal/${encodeURIComponent(token)}/tasks/${task.id}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: targetCompleted }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(`Couldn't update: ${err.error || res.status}`)
+      }
+      await onChange()
+    } finally {
+      setBusyIds((s) => {
+        const next = new Set(s)
+        next.delete(task.id)
+        return next
+      })
+    }
+  }
 
   return (
-    <div className={`flex items-start p-3 rounded border ${
-      isCompleted ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
-    }`}>
-      <input
-        type="checkbox"
-        checked={isCompleted}
-        readOnly
-        className="mt-1 h-4 w-4 text-blue-600 rounded"
-      />
-      <div className="ml-3 flex-1">
-        <p className={`text-sm ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-          {task.title}
-        </p>
-        {task.dueDate && (
-          <p className="text-xs text-gray-500 mt-1">
-            Due: {new Date(task.dueDate).toLocaleDateString()}
-          </p>
-        )}
-      </div>
+    <div>
+      <h3 className="text-lg font-medium text-gray-900 mb-3">Your action items</h3>
+      {tasks.length === 0 ? (
+        <p className="text-gray-500 text-sm">Nothing on your plate right now.</p>
+      ) : (
+        <ul className="space-y-2">
+          {tasks.map((t) => {
+            const isCompleted = t.status === 'completed'
+            const busy = busyIds.has(t.id)
+            return (
+              <li
+                key={t.id}
+                className={`flex items-start p-3 rounded border ${
+                  isCompleted ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isCompleted}
+                  disabled={busy}
+                  onChange={() => toggle(t)}
+                  className="mt-1 h-4 w-4 text-blue-600 rounded cursor-pointer disabled:cursor-wait"
+                />
+                <div className="ml-3 flex-1">
+                  <p
+                    className={`text-sm ${
+                      isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'
+                    }`}
+                  >
+                    {t.title}
+                  </p>
+                  {t.description && (
+                    <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{t.description}</p>
+                  )}
+                  {t.dueDate && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Due: {new Date(t.dueDate).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function AdminWorkList({ tasks }: { tasks: Task[] }) {
+  if (tasks.length === 0) return null
+  return (
+    <div>
+      <h3 className="text-lg font-medium text-gray-900 mb-3">What we&apos;re working on</h3>
+      <ul className="space-y-2">
+        {tasks.map((t) => {
+          const isCompleted = t.status === 'completed'
+          return (
+            <li
+              key={t.id}
+              className={`flex items-start gap-3 p-3 rounded border ${
+                isCompleted ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
+              }`}
+            >
+              <span
+                className={`shrink-0 mt-0.5 px-2 py-0.5 rounded text-xs font-medium ${
+                  isCompleted
+                    ? 'bg-green-100 text-green-800'
+                    : t.status === 'in-progress' || t.status === 'in_progress'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-blue-100 text-blue-800'
+                }`}
+              >
+                {t.status.replace(/[_-]/g, ' ')}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p
+                  className={`text-sm ${
+                    isCompleted ? 'text-gray-500' : 'text-gray-900'
+                  }`}
+                >
+                  {t.title}
+                </p>
+                {t.description && (
+                  <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{t.description}</p>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
