@@ -221,8 +221,15 @@ export default function AdminDashboard() {
                         {client.primaryContactName}<br />
                         <span className="text-gray-400">{client.primaryContactEmail}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 truncate max-w-xs">
-                        {client.magicLink}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm truncate max-w-xs">
+                        <a
+                          href={client.magicLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {client.magicLink}
+                        </a>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(client.magicLinkExpiresAt).toLocaleDateString()}
