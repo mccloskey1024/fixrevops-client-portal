@@ -42,6 +42,17 @@ interface ServiceRequest {
   createdAt: string
 }
 
+interface LinearIssue {
+  id: string
+  identifier: string
+  title: string
+  url: string
+  priority: number | null
+  stateName: string
+  stateType: string
+  labels: string[]
+}
+
 interface Engagement {
   id: string
   name: string
@@ -53,6 +64,7 @@ interface Engagement {
   files: FileRow[]
   comments: Comment[]
   serviceRequests?: ServiceRequest[]
+  linearIssues?: LinearIssue[]
 }
 
 interface ClientData {
@@ -176,16 +188,14 @@ function EngagementCard({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Tasks Section — split into client action items vs admin work */}
+        {/* Left column: client action items + live "what we're working on" from Linear */}
         <div className="space-y-5">
           <ClientActionList
             tasks={engagement.tasks.filter((t) => t.type === 'client_action')}
             token={token}
             onChange={refresh}
           />
-          <AdminWorkList
-            tasks={engagement.tasks.filter((t) => t.type !== 'client_action')}
-          />
+          <LinearWorkList issues={engagement.linearIssues ?? []} />
         </div>
 
         {/* Files Section */}
@@ -589,48 +599,74 @@ function ClientActionList({
   )
 }
 
-function AdminWorkList({ tasks }: { tasks: Task[] }) {
-  if (tasks.length === 0) return null
+// Renders the live mirror of Linear issues for this engagement's project.
+// Issues labeled "Internal" are filtered out server-side, so anything that
+// reaches us here is fair game to show. We surface anything in-progress at
+// the top, with the rest collapsed underneath.
+function LinearWorkList({ issues }: { issues: LinearIssue[] }) {
+  if (issues.length === 0) {
+    return (
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-3">What we&apos;re working on</h3>
+        <p className="text-gray-500 text-sm">Nothing active on our side right now.</p>
+      </div>
+    )
+  }
+
+  // Active = started; Upcoming = backlog/unstarted/triage; we don't render
+  // completed/canceled separately because the API already filters them out.
+  const active = issues.filter((i) => i.stateType === 'started')
+  const upcoming = issues.filter((i) => i.stateType !== 'started')
+
   return (
     <div>
       <h3 className="text-lg font-medium text-gray-900 mb-3">What we&apos;re working on</h3>
-      <ul className="space-y-2">
-        {tasks.map((t) => {
-          const isCompleted = t.status === 'completed'
-          return (
-            <li
-              key={t.id}
-              className={`flex items-start gap-3 p-3 rounded border ${
-                isCompleted ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
-              }`}
-            >
-              <span
-                className={`shrink-0 mt-0.5 px-2 py-0.5 rounded text-xs font-medium ${
-                  isCompleted
-                    ? 'bg-green-100 text-green-800'
-                    : t.status === 'in-progress' || t.status === 'in_progress'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-blue-100 text-blue-800'
-                }`}
-              >
-                {t.status.replace(/[_-]/g, ' ')}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-sm ${
-                    isCompleted ? 'text-gray-500' : 'text-gray-900'
-                  }`}
-                >
-                  {t.title}
-                </p>
-                {t.description && (
-                  <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{t.description}</p>
-                )}
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+
+      {active.length > 0 && (
+        <ul className="space-y-2 mb-3">
+          {active.map((i) => (
+            <LinearIssueRow key={i.id} issue={i} prominent />
+          ))}
+        </ul>
+      )}
+
+      {upcoming.length > 0 && (
+        <details className="text-sm" open={active.length === 0}>
+          <summary className="cursor-pointer text-gray-600 hover:text-gray-800 select-none">
+            {active.length > 0 ? `Upcoming (${upcoming.length})` : `Queued up (${upcoming.length})`}
+          </summary>
+          <ul className="space-y-2 mt-2">
+            {upcoming.map((i) => (
+              <LinearIssueRow key={i.id} issue={i} />
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
+  )
+}
+
+function LinearIssueRow({ issue, prominent = false }: { issue: LinearIssue; prominent?: boolean }) {
+  const isStarted = issue.stateType === 'started'
+  const badge =
+    isStarted
+      ? 'bg-yellow-100 text-yellow-800'
+      : issue.stateType === 'backlog'
+      ? 'bg-gray-100 text-gray-700'
+      : 'bg-blue-100 text-blue-800'
+
+  return (
+    <li
+      className={`flex items-start gap-3 p-3 rounded border ${
+        prominent ? 'bg-white border-gray-300' : 'bg-gray-50 border-gray-200'
+      }`}
+    >
+      <span className={`shrink-0 mt-0.5 px-2 py-0.5 rounded text-xs font-medium ${badge}`}>
+        {issue.stateName}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-gray-900">{issue.title}</p>
+      </div>
+    </li>
   )
 }

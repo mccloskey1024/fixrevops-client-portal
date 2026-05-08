@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyMagicLinkToken } from '@/lib/magic-link'
 import { enforceRateLimit } from '@/lib/rate-limit'
+import { listLinearIssues, type LinearIssueListItem } from '@/lib/linear'
 
 export async function GET(
   request: NextRequest,
@@ -13,7 +14,6 @@ export async function GET(
     const blocked = enforceRateLimit(`portal:read:${signedToken}`, 60, 60_000)
     if (blocked) return blocked
 
-    // Verify the magic link token
     const verification = verifyMagicLinkToken(signedToken)
     if (!verification.valid || !verification.token) {
       return NextResponse.json(
@@ -22,7 +22,6 @@ export async function GET(
       )
     }
 
-    // Find the client by token
     const client = await prisma.client.findUnique({
       where: { magicLinkToken: verification.token },
       include: {
@@ -45,7 +44,30 @@ export async function GET(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Filter out internal-only data for client view
+    // Fetch live Linear issues for each engagement that's connected to a project,
+    // in parallel. Failures fall through silently — we just won't show that section.
+    const clientNamePrefix = `[${client.name}]`
+    const linearIssuesByEngagement: Record<string, LinearIssueListItem[]> = {}
+    await Promise.all(
+      client.engagements.map(async (e) => {
+        if (!e.linearProjectId) return
+        const result = await listLinearIssues({ projectId: e.linearProjectId })
+        if (!result.ok || !result.data) {
+          linearIssuesByEngagement[e.id] = []
+          return
+        }
+        // Hide issues that are mirrors of this client's own service requests —
+        // those are already surfaced in the "Requests" section.
+        // Also hide anything labeled "Internal" — internal Dijitlcraft/FixRevOps work
+        // that the client doesn't need to see.
+        linearIssuesByEngagement[e.id] = result.data.filter(
+          (i) =>
+            !i.title.startsWith(clientNamePrefix) &&
+            !i.labels.includes('Internal')
+        )
+      })
+    )
+
     const clientData = {
       id: client.id,
       name: client.name,
@@ -55,13 +77,12 @@ export async function GET(
         status: engagement.status,
         startDate: engagement.startDate,
         targetEndDate: engagement.targetEndDate,
-        // Expose linearProjectId presence (boolean) so the UI can show/hide
-        // the New Request button. Don't leak the actual ID to the client.
         linearProjectConnected: Boolean(engagement.linearProjectId),
         tasks: engagement.tasks,
         files: engagement.files,
         comments: engagement.comments,
         serviceRequests: engagement.serviceRequests,
+        linearIssues: linearIssuesByEngagement[engagement.id] ?? [],
       })),
     }
 

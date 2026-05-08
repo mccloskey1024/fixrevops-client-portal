@@ -110,3 +110,73 @@ export async function createLinearProject(
   }
   return { ok: true, data: result.data.projectCreate.project }
 }
+
+// ---------- Listing project issues ----------
+
+export type LinearIssueListItem = {
+  id: string
+  identifier: string
+  title: string
+  url: string
+  priority: number | null
+  stateName: string
+  stateType: string // backlog | unstarted | started | completed | canceled | triage
+  labels: string[]
+}
+
+type RawIssueNode = {
+  id: string
+  identifier: string
+  title: string
+  url: string
+  priority: number | null
+  state: { name: string; type: string } | null
+  labels: { nodes: Array<{ name: string }> } | null
+}
+
+export async function listLinearIssues(args: {
+  projectId: string
+  includeCompleted?: boolean
+}): Promise<LinearResult<LinearIssueListItem[]>> {
+  const query = `query IssuesByProject($projectId: String!) {
+    project(id: $projectId) {
+      id
+      issues(first: 100) {
+        nodes {
+          id
+          identifier
+          title
+          url
+          priority
+          state { name type }
+          labels { nodes { name } }
+        }
+      }
+    }
+  }`
+  const result = await callLinear<{
+    project?: { id: string; issues?: { nodes: RawIssueNode[] } }
+  }>(query, { projectId: args.projectId })
+
+  if (!result.ok) return { ok: false, error: result.error }
+  const nodes = result.data?.project?.issues?.nodes ?? []
+
+  let mapped: LinearIssueListItem[] = nodes.map((n) => ({
+    id: n.id,
+    identifier: n.identifier,
+    title: n.title,
+    url: n.url,
+    priority: n.priority,
+    stateName: n.state?.name ?? 'Unknown',
+    stateType: n.state?.type ?? 'backlog',
+    labels: n.labels?.nodes?.map((l) => l.name) ?? [],
+  }))
+
+  if (!args.includeCompleted) {
+    mapped = mapped.filter(
+      (i) => i.stateType !== 'completed' && i.stateType !== 'canceled'
+    )
+  }
+
+  return { ok: true, data: mapped }
+}
