@@ -58,7 +58,12 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         const data = await response.json()
-        alert(`Client created! Magic link:\n${data.magicLink}`)
+        const emailStatus = data.email?.sent
+          ? `\n\nWelcome email sent to ${data.email && newClient.primaryContactEmail}.`
+          : data.email?.error
+            ? `\n\nEmail send FAILED: ${data.email.error}`
+            : ''
+        alert(`Client created! Magic link:\n${data.magicLink}${emailStatus}`)
         setNewClient({ name: '', primaryContactName: '', primaryContactEmail: '', primaryContactPhone: '' })
         setShowNewClientForm(false)
         fetchClients()
