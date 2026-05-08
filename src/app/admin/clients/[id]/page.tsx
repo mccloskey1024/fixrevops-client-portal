@@ -73,6 +73,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     status: 'planning',
     startDate: '',
     targetEndDate: '',
+    linearProjectId: '',
   })
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       body: JSON.stringify({ ...newEngagement, clientId: id }),
     })
     if (r.ok) {
-      setNewEngagement({ name: '', description: '', status: 'planning', startDate: '', targetEndDate: '' })
+      setNewEngagement({ name: '', description: '', status: 'planning', startDate: '', targetEndDate: '', linearProjectId: '' })
       setShowNewEngagement(false)
       refresh()
     } else {
@@ -214,6 +215,21 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Linear Project ID <span className="text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={newEngagement.linearProjectId}
+                  onChange={(e) => setNewEngagement({ ...newEngagement, linearProjectId: e.target.value })}
+                  placeholder="e.g. abc123-def456-..."
+                  className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Paste a Linear project ID here to enable client-submitted service requests on this engagement.
+                </p>
+              </div>
               <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                 Create Engagement
               </button>
@@ -262,6 +278,7 @@ function EngagementCard({
             {engagement.startDate && <>Start: {new Date(engagement.startDate).toLocaleDateString()} · </>}
             {engagement.targetEndDate && <>Target end: {new Date(engagement.targetEndDate).toLocaleDateString()}</>}
           </div>
+          <LinearProjectIdEditor engagement={engagement} onChange={onChange} />
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -280,6 +297,56 @@ function EngagementCard({
         <FilesPanel engagement={engagement} onChange={onChange} />
         <CommentsPanel engagement={engagement} onChange={onChange} />
       </div>
+    </div>
+  )
+}
+
+function LinearProjectIdEditor({
+  engagement,
+  onChange,
+}: {
+  engagement: Engagement
+  onChange: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(engagement.linearProjectId || '')
+
+  async function save() {
+    await fetch(`/api/admin/engagements/${engagement.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ linearProjectId: value.trim() || null }),
+    })
+    setEditing(false)
+    onChange()
+  }
+
+  if (!editing) {
+    return (
+      <div className="text-xs text-gray-500 mt-1">
+        Linear project: {engagement.linearProjectId
+          ? <code className="text-gray-700">{engagement.linearProjectId.slice(0, 8)}…</code>
+          : <span className="text-gray-400">not connected</span>}
+        {' · '}
+        <button onClick={() => setEditing(true)} className="text-blue-600 hover:underline">
+          {engagement.linearProjectId ? 'change' : 'connect'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2 mt-1">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Linear project ID"
+        className="text-xs rounded border-gray-300 px-2 py-1"
+        autoFocus
+      />
+      <button onClick={save} className="text-xs text-blue-600 hover:underline">Save</button>
+      <button onClick={() => { setEditing(false); setValue(engagement.linearProjectId || '') }} className="text-xs text-gray-500 hover:underline">Cancel</button>
     </div>
   )
 }

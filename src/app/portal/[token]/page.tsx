@@ -31,15 +31,28 @@ interface Comment {
   createdAt: string
 }
 
+interface ServiceRequest {
+  id: string
+  title: string
+  description: string | null
+  submittedBy: string
+  status: string
+  linearIssueId: string | null
+  linearIssueUrl: string | null
+  createdAt: string
+}
+
 interface Engagement {
   id: string
   name: string
   status: string
   startDate: string | null
   targetEndDate: string | null
+  linearProjectConnected?: boolean
   tasks: Task[]
   files: FileRow[]
   comments: Comment[]
+  serviceRequests?: ServiceRequest[]
 }
 
 interface ClientData {
@@ -221,6 +234,14 @@ function EngagementCard({
         </div>
       </div>
 
+      {/* Service Requests — submit new asks that route to Linear */}
+      <RequestsSection
+        engagement={engagement}
+        token={token}
+        clientName={clientName}
+        refresh={refresh}
+      />
+
       {/* Messages Section — always shown so clients can start a thread */}
       <div className="mt-6 pt-6 border-t">
         <h3 className="text-lg font-medium text-gray-900 mb-3">Messages</h3>
@@ -317,6 +338,183 @@ function MessageForm({
           className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {sending ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function RequestsSection({
+  engagement,
+  token,
+  clientName,
+  refresh,
+}: {
+  engagement: Engagement
+  token: string
+  clientName: string
+  refresh: () => void | Promise<void>
+}) {
+  const [showForm, setShowForm] = useState(false)
+  const requests = engagement.serviceRequests ?? []
+  const canSubmit = engagement.linearProjectConnected !== false
+
+  return (
+    <div className="mt-6 pt-6 border-t">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-lg font-medium text-gray-900">Requests</h3>
+        {canSubmit && (
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+          >
+            {showForm ? 'Cancel' : '+ New Request'}
+          </button>
+        )}
+      </div>
+
+      {!canSubmit && (
+        <p className="text-sm text-gray-500 mb-3">
+          New request submission isn&apos;t set up for this engagement yet.
+        </p>
+      )}
+
+      {canSubmit && showForm && (
+        <div className="mb-4">
+          <RequestForm
+            engagementId={engagement.id}
+            token={token}
+            defaultAuthor={clientName}
+            onSent={async () => { setShowForm(false); await refresh() }}
+          />
+        </div>
+      )}
+
+      {requests.length > 0 ? (
+        <ul className="space-y-2">
+          {requests.map((r) => (
+            <li key={r.id} className="flex items-start gap-3 text-sm bg-gray-50 rounded p-3">
+              <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${
+                r.status === 'completed' ? 'bg-green-100 text-green-800' :
+                r.status === 'in_progress' || r.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-blue-100 text-blue-800'
+              }`}>
+                {r.status.replace(/[_-]/g, ' ')}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-gray-900">{r.title}</div>
+                {r.description && (
+                  <div className="text-xs text-gray-600 whitespace-pre-wrap mt-1">{r.description}</div>
+                )}
+                <div className="text-xs text-gray-500 mt-1">
+                  {r.submittedBy} • {new Date(r.createdAt).toLocaleString()}
+                  {r.linearIssueId && ' • '}
+                  {r.linearIssueId && (
+                    r.linearIssueUrl
+                      ? <a href={r.linearIssueUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{r.linearIssueId}</a>
+                      : <span>{r.linearIssueId}</span>
+                  )}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        canSubmit && !showForm && (
+          <p className="text-sm text-gray-500">No requests yet.</p>
+        )
+      )}
+    </div>
+  )
+}
+
+function RequestForm({
+  engagementId,
+  token,
+  defaultAuthor,
+  onSent,
+}: {
+  engagementId: string
+  token: string
+  defaultAuthor: string
+  onSent: () => void | Promise<void>
+}) {
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [submittedBy, setSubmittedBy] = useState(defaultAuthor)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return
+    setSending(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/portal/${encodeURIComponent(token)}/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          engagementId,
+          title,
+          description,
+          submittedBy: submittedBy || defaultAuthor,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Failed (${res.status})`)
+      }
+      setTitle('')
+      setDescription('')
+      await onSent()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Submit failed')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={send} className="bg-gray-50 rounded p-4 space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Your name</label>
+        <input
+          type="text"
+          value={submittedBy}
+          onChange={(e) => setSubmittedBy(e.target.value)}
+          className="w-full text-sm rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">What do you need?</label>
+        <input
+          type="text"
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Short summary…"
+          className="w-full text-sm rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Details (optional)</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Any context, deadlines, or links."
+          rows={3}
+          className="w-full text-sm rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={sending || !title.trim()}
+          className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {sending ? 'Submitting…' : 'Submit Request'}
         </button>
       </div>
     </form>

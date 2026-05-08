@@ -28,16 +28,13 @@ export async function GET(
       include: {
         engagements: {
           include: {
-            tasks: {
-              orderBy: { createdAt: 'desc' },
-            },
-            files: {
-              orderBy: { uploadedAt: 'desc' },
-            },
+            tasks: { orderBy: { createdAt: 'desc' } },
+            files: { orderBy: { uploadedAt: 'desc' } },
             comments: {
               where: { isInternal: false },
               orderBy: { createdAt: 'asc' },
             },
+            serviceRequests: { orderBy: { createdAt: 'desc' } },
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -45,10 +42,7 @@ export async function GET(
     })
 
     if (!client) {
-      return NextResponse.json(
-        { error: 'Client not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
     // Filter out internal-only data for client view
@@ -61,18 +55,19 @@ export async function GET(
         status: engagement.status,
         startDate: engagement.startDate,
         targetEndDate: engagement.targetEndDate,
+        // Expose linearProjectId presence (boolean) so the UI can show/hide
+        // the New Request button. Don't leak the actual ID to the client.
+        linearProjectConnected: Boolean(engagement.linearProjectId),
         tasks: engagement.tasks,
         files: engagement.files,
         comments: engagement.comments,
+        serviceRequests: engagement.serviceRequests,
       })),
     }
 
     return NextResponse.json(clientData)
   } catch (error) {
     console.error('Error fetching portal data:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch portal data' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch portal data' }, { status: 500 })
   }
 }

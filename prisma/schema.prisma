@@ -23,12 +23,12 @@ model Client {
 }
 
 model Engagement {
-  id              String    @id @default(cuid())
+  id              String           @id @default(cuid())
   clientId        String
-  client          Client    @relation(fields: [clientId], references: [id])
+  client          Client           @relation(fields: [clientId], references: [id])
   name            String
   description     String?
-  status          String    @default("planning") // planning, active, completed, on-hold
+  status          String           @default("planning")
   startDate       DateTime?
   targetEndDate   DateTime?
   hubspotPortalId String?
@@ -36,8 +36,9 @@ model Engagement {
   tasks           Task[]
   files           File[]
   comments        Comment[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  serviceRequests ServiceRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Task {
@@ -46,21 +47,21 @@ model Task {
   engagement   Engagement @relation(fields: [engagementId], references: [id])
   title        String
   description  String?
-  type         String     @default("client_action") // client_action, internal, milestone
-  status       String     @default("pending") // pending, in-progress, completed
+  type         String     @default("client_action")
+  status       String     @default("pending")
   dueDate      DateTime?
   assignedTo   String?
   completedAt  DateTime?
   createdAt    DateTime   @default(now())
-  updatedAt   DateTime    @updatedAt
+  updatedAt    DateTime   @updatedAt
 }
 
 model File {
   id              String     @id @default(cuid())
   engagementId    String
   engagement      Engagement @relation(fields: [engagementId], references: [id])
-  uploadedBy      String     // "client" or "internal"
-  storageProvider String     @default("drive") // "drive" or "s3"
+  uploadedBy      String
+  storageProvider String     @default("drive")
   storagePath     String
   fileName        String
   fileSize        Int
@@ -72,7 +73,7 @@ model Comment {
   id           String     @id @default(cuid())
   engagementId String
   engagement   Engagement @relation(fields: [engagementId], references: [id])
-  author       String     // "client" or "internal"
+  author       String
   authorName   String
   content      String
   isInternal   Boolean    @default(false)
@@ -83,13 +84,27 @@ model Notification {
   id           String    @id @default(cuid())
   engagementId String?
   taskId       String?
-  type         String    // email, sms
+  type         String
   template     String?
   recipient    String?
   subject      String?
   body         String?
   scheduledFor DateTime?
   sentAt       DateTime?
-  status       String    @default("pending") // pending, sent, failed
+  status       String    @default("pending")
   createdAt    DateTime  @default(now())
+}
+
+model ServiceRequest {
+  id             String     @id @default(cuid())
+  engagementId   String
+  engagement     Engagement @relation(fields: [engagementId], references: [id])
+  title          String
+  description    String?
+  submittedBy    String
+  status         String     @default("submitted") // submitted, in_progress, completed
+  linearIssueId  String?    // identifier like "DIJ-456"
+  linearIssueUrl String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
