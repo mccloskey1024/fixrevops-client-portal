@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyMagicLinkToken } from '@/lib/magic-link'
 import { enforceRateLimit } from '@/lib/rate-limit'
+import { notifyAdmin, adminClientUrl } from '@/lib/notifications'
 
 // POST /api/portal/[token]/tasks/[id]/complete
 // Toggles a `client_action` task between completed and pending.
@@ -68,6 +69,26 @@ export async function POST(
         completedAt: targetCompleted ? new Date() : null,
       },
     })
+
+    // Notify Shane only when a task is checked off (not when re-opened).
+    if (targetCompleted) {
+      const engagement = client.engagements.find((e) => e.id === task.engagementId)
+      after(() =>
+        notifyAdmin({
+          type: 'task_completed',
+          engagementId: task.engagementId,
+          taskId: task.id,
+          heading: `${client.name} completed an action item: ${task.title}`,
+          lines: [
+            { label: 'Client', value: client.name },
+            ...(engagement ? [{ label: 'Engagement', value: engagement.name }] : []),
+            { label: 'Task', value: task.title },
+          ],
+          ctaUrl: adminClientUrl(client.id),
+          ctaLabel: 'Open in admin',
+        })
+      )
+    }
 
     return NextResponse.json(updatedTask)
   } catch (error) {

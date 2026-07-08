@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyMagicLinkToken } from '@/lib/magic-link'
 import { enforceRateLimit } from '@/lib/rate-limit'
+import { notifyAdmin, adminClientUrl } from '@/lib/notifications'
 
 export async function POST(
   request: NextRequest,
@@ -57,6 +58,22 @@ export async function POST(
         isInternal: false,
       },
     })
+
+    after(() =>
+      notifyAdmin({
+        type: 'client_message',
+        engagementId,
+        heading: `New message from ${authorName} (${client.name})`,
+        lines: [
+          { label: 'Client', value: client.name },
+          { label: 'Engagement', value: engagement.name },
+          { label: 'From', value: authorName },
+        ],
+        excerpt: typeof content === 'string' ? content.slice(0, 500) : undefined,
+        ctaUrl: adminClientUrl(client.id),
+        ctaLabel: 'Reply in admin',
+      })
+    )
 
     return NextResponse.json(comment)
   } catch (error: unknown) {

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyMagicLinkToken } from '@/lib/magic-link'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { createLinearIssue } from '@/lib/linear'
+import { notifyAdmin, adminClientUrl } from '@/lib/notifications'
 
 // POST /api/portal/[token]/requests
 // Body: { engagementId, title, description?, submittedBy? }
@@ -101,6 +102,25 @@ export async function POST(
         linearIssueUrl: issue?.url || null,
       },
     })
+
+    after(() =>
+      notifyAdmin({
+        type: 'service_request',
+        engagementId,
+        heading: `New service request from ${client.name}: ${dbRequest.title}`,
+        lines: [
+          { label: 'Client', value: client.name },
+          { label: 'Engagement', value: engagement.name },
+          { label: 'Submitted by', value: submitter },
+          ...(dbRequest.linearIssueId
+            ? [{ label: 'Linear issue', value: dbRequest.linearIssueId }]
+            : []),
+        ],
+        excerpt: dbRequest.description || undefined,
+        ctaUrl: dbRequest.linearIssueUrl || adminClientUrl(client.id),
+        ctaLabel: dbRequest.linearIssueUrl ? 'Open in Linear' : 'Open in admin',
+      })
+    )
 
     return NextResponse.json({
       id: dbRequest.id,
