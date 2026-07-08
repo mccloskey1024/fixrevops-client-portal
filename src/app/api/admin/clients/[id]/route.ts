@@ -37,7 +37,7 @@ export async function GET(
   }
 }
 
-// DELETE /api/admin/clients/[id] — fully cascades engagements/tasks/files/comments
+// DELETE /api/admin/clients/[id] — fully cascades engagements/tasks/files/comments/service requests
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,6 +53,7 @@ export async function DELETE(
     const engagementIds = engagements.map((e) => e.id)
 
     await prisma.$transaction([
+      prisma.serviceRequest.deleteMany({ where: { engagementId: { in: engagementIds } } }),
       prisma.task.deleteMany({ where: { engagementId: { in: engagementIds } } }),
       prisma.file.deleteMany({ where: { engagementId: { in: engagementIds } } }),
       prisma.comment.deleteMany({ where: { engagementId: { in: engagementIds } } }),

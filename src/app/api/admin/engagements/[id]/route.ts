@@ -28,7 +28,7 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/admin/engagements/[id] — cascade-delete tasks/files/comments first
+// DELETE /api/admin/engagements/[id] — cascade-delete tasks/files/comments/service requests first
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -36,6 +36,7 @@ export async function DELETE(
   try {
     const { id } = await params
     await prisma.$transaction([
+      prisma.serviceRequest.deleteMany({ where: { engagementId: id } }),
       prisma.task.deleteMany({ where: { engagementId: id } }),
       prisma.file.deleteMany({ where: { engagementId: id } }),
       prisma.comment.deleteMany({ where: { engagementId: id } }),
