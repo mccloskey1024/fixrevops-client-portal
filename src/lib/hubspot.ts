@@ -113,6 +113,17 @@ export async function createDeal(args: {
   return hsRequest<HsObject>('POST', '/crm/v3/objects/deals', body)
 }
 
+// Update an existing deal's pipeline stage (e.g. when an engagement is
+// completed or cancelled in the admin UI).
+export async function updateDealStage(
+  dealId: string,
+  stageId: string
+): Promise<HsResult<HsObject>> {
+  return hsRequest<HsObject>('PATCH', `/crm/v3/objects/deals/${dealId}`, {
+    properties: { dealstage: stageId },
+  })
+}
+
 // ---------- Projects (object type 0-970) ----------
 
 export type HsProjectArgs = {

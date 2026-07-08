@@ -70,7 +70,7 @@ type LinearIssue = {
   labels: string[]
 }
 
-const STATUS_OPTIONS = ['planning', 'active', 'on-hold', 'completed']
+const STATUS_OPTIONS = ['planning', 'active', 'on-hold', 'completed', 'cancelled']
 const TASK_STATUS_OPTIONS = ['pending', 'in-progress', 'completed']
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -120,11 +120,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }
 
   async function updateEngagementStatus(eid: string, status: string) {
-    await fetch(`/api/admin/engagements/${eid}`, {
+    const r = await fetch(`/api/admin/engagements/${eid}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
+    const data = await r.json().catch(() => null)
+    if (data?.hubspotSync?.attempted && !data.hubspotSync.ok) {
+      alert(`Status saved, but HubSpot deal sync failed:\n${data.hubspotSync.error || 'Unknown error'}`)
+    }
     refresh()
   }
 
