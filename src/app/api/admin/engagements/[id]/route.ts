@@ -33,7 +33,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { name, description, status, startDate, targetEndDate, hubspotPortalId, linearProjectId } = body
+    const { name, description, status, startDate, targetEndDate, hubspotPortalId, hubspotDealId, linearProjectId } = body
 
     const existing = await prisma.engagement.findUnique({ where: { id } })
     if (!existing) {
@@ -47,6 +47,7 @@ export async function PATCH(
     if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null
     if (targetEndDate !== undefined) updateData.targetEndDate = targetEndDate ? new Date(targetEndDate) : null
     if (hubspotPortalId !== undefined) updateData.hubspotPortalId = hubspotPortalId
+    if (hubspotDealId !== undefined) updateData.hubspotDealId = hubspotDealId
     if (linearProjectId !== undefined) updateData.linearProjectId = linearProjectId
 
     const engagement = await prisma.engagement.update({ where: { id }, data: updateData })

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { clientId, name, status, startDate, targetEndDate, hubspotPortalId, linearProjectId } = body
+    const { clientId, name, status, startDate, targetEndDate, hubspotPortalId, hubspotDealId, linearProjectId } = body
 
     if (!clientId || !name) {
       return NextResponse.json(
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
         hubspotPortalId,
+        hubspotDealId,
         linearProjectId,
       },
     })
