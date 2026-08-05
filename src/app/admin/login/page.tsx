@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Logo from '@/components/Logo'
 
 function LoginForm() {
   const [password, setPassword] = useState('')
@@ -39,14 +40,20 @@ function LoginForm() {
   }
 
   return (
-    <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-        Admin Login
+    <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-8 shadow-lg">
+      <h1 className="mb-1 text-xl font-bold tracking-tight text-neutral-900">
+        Admin login
       </h1>
+      <p className="mb-6 text-sm text-neutral-500">
+        Enter your password to manage clients.
+      </p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="password"
+            className="mb-1.5 block text-sm font-medium text-neutral-700"
+          >
             Password
           </label>
           <input
@@ -54,20 +61,22 @@ function LoginForm() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="block w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm shadow-sm transition focus:border-[#F5A623] focus:outline-none focus:ring-2 focus:ring-[#F5A623]/40"
             required
             autoFocus
           />
         </div>
 
         {error && (
-          <div className="text-red-600 text-sm">{error}</div>
+          <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+            {error}
+          </div>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex w-full justify-center rounded-lg bg-[#F5A623] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-[#F5A623]/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
@@ -78,10 +87,13 @@ function LoginForm() {
 
 export default function AdminLoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0D0D0D] px-4">
+      <div className="mb-8">
+        <Logo size="lg" theme="dark" />
+      </div>
       <Suspense
         fallback={
-          <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-md text-center text-gray-500">
+          <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-8 text-center text-sm text-neutral-500 shadow-lg">
             Loading…
           </div>
         }
