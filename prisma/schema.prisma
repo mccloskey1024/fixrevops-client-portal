@@ -110,3 +110,11 @@ model ServiceRequest {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
+
+// Shared state for standalone pages served at /p/[slug] (checklists, statuses,
+// notes). One row per page; `state` is a flat key/value JSON object.
+model SharedPageState {
+  slug      String   @id
+  state     Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}

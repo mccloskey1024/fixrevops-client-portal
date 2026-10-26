@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>R &amp; R Lunchbox: Opening Packet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --card: #ffffff;
+    --ink: #1c1f23;
+    --muted: #5d6670;
+    --line: #e3e1da;
+    --accent: #1f6f5c;
+    --accent-soft: #e4f1ec;
+    --done: #2e7d4f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 40px 16px 32px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+  header .wrap { padding: 0; }
+  header p { margin: 6px 0 0; opacity: .85; font-size: 15px; }
+  h1 { margin: 0; font-size: 30px; letter-spacing: -0.01em; }
+  main { padding: 28px 0 60px; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  h2 { margin: 0 0 10px; font-size: 20px; }
+  p { margin: 0 0 12px; }
+  .lead { font-size: 17px; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  .note {
+    background: var(--accent-soft);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    font-size: 15px;
+  }
+  .checks { list-style: none; padding: 0; margin: 0; }
+  .checks li {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 0; border-top: 1px solid var(--line); margin: 0;
+  }
+  .checks li:first-child { border-top: 0; }
+  .checks input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .checks label { cursor: pointer; }
+  .checks input:checked + label { color: var(--muted); text-decoration: line-through; }
+  .tbl { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 820px; }
+  th, td { text-align: left; padding: 10px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; border-top: 0; }
+  select {
+    font: inherit; font-size: 13.5px; padding: 4px 6px; border-radius: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+  }
+  select.done { background: #e6f3eb; color: var(--done); border-color: #bfe0cb; }
+  select.prog { background: #fff5e0; color: #8a5a00; border-color: #f0d9a6; }
+  a { color: var(--accent); }
+  .sync { font-size: 13px; opacity: .8; margin-top: 10px !important; }
+  .sync.err { color: #ffd7d2; opacity: 1; }
+  input.note-in {
+    font: inherit; font-size: 13.5px; width: 100%; min-width: 150px; padding: 5px 7px;
+    border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink);
+  }
+  textarea {
+    font: inherit; font-size: 15px; width: 100%; padding: 10px 12px; resize: vertical;
+    border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink);
+  }
+  input.note-in:focus, textarea:focus, select:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  footer { color: var(--muted); font-size: 13px; text-align: center; padding: 0 16px 40px; }
+  @media (max-width: 600px) {
+    h1 { font-size: 24px; }
+    section { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>R &amp; R Lunchbox: Opening Packet</h1>
+    <p>Prepared by Shane McCloskey, October 26, 2026</p>
+    <p class="sync" id="sync">Loading your latest updates...</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section>
+  <h2>Where things stand</h2>
+  <p class="lead">You're in good shape. The hardest legal setup is done, and taking over a space that was already a restaurant means no construction. From a signed lease, 30 to 60 days to open is realistic. Most of what's left is applications and inspections.</p>
+  <p>Already done:</p>
+  <ul>
+    <li>R &amp; R Lunchbox LLC formed with the SC Secretary of State on October 14, 2026 (Certificate of Existence dated October 16)</li>
+    <li>EIN issued by the IRS (keep the CP575 letter somewhere safe, every application below asks for the number)</li>
+    <li>Operating agreement drafted by your lawyer</li>
+    <li>Location: Longs, SC (unincorporated Horry County), a former restaurant with the kitchen equipment in place</li>
+  </ul>
+  <p>In progress: closing on the space and the business loan.</p>
+  <div class="note">Lauren is the sole member of the LLC, so Lauren is the applicant on the state applications and the one who gets the background check for the beer and wine permit. Mikey is the one who needs the ServSafe Manager certificate.</div>
+</section>
+
+<section>
+  <h2>This week, in order</h2>
+  <p>Do these five first. Each one unlocks the next, and none costs more than a few hundred dollars. Checkmarks, statuses and notes save automatically and show up for anyone with this link.</p>
+  <ul class="checks" data-group="week">
+    <li><input type="checkbox" id="w1"><label for="w1">Confirm the property is outside city limits. Look up the address on the Horry County GIS map. Some Longs addresses fall inside North Myrtle Beach or Loris, and then the city handles the local license instead of the county.</label></li>
+    <li><input type="checkbox" id="w2"><label for="w2">Apply for the SC Retail License (sales tax) on <a href="https://dor.sc.gov/mydorway" target="_blank" rel="noopener">MyDORWAY</a>. $50 license fee. Register for employer withholding in the same session. You only need the EIN.</label></li>
+    <li><input type="checkbox" id="w3"><label for="w3">Call Horry County Planning and Zoning at <a href="tel:8439155340">843-915-5340</a> with the address. Tell them it's a restaurant taking over a former restaurant space, with beer and wine. You need their zoning approval before the county will issue a business license.</label></li>
+    <li><input type="checkbox" id="w4"><label for="w4">Get a copy of the previous restaurant's beer and wine permit and their last health inspection from the landlord or old owner. If their beer and wine permit is still valid, you can get a temporary permit and sell beer and wine while yours processes.</label></li>
+    <li><input type="checkbox" id="w5"><label for="w5">Mikey: sign up for the ServSafe Manager exam at <a href="https://www.servsafe.com" target="_blank" rel="noopener">servsafe.com</a> if he doesn't already have a current certificate. About $180 with the online course.</label></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Full checklist</h2>
+  <p>Everything needed to open, in the order you'll hit it. Set the status as you go, and jot confirmation numbers or dates in the notes.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>Item</th><th>Who issues it</th><th>Cost</th><th>Needs first</th><th>Status</th><th>Notes</th></tr></thead>
+    <tbody id="checklist">
+      <tr data-default="2"><td>LLC</td><td>SC Secretary of State</td><td>Paid</td><td>Nothing</td><td></td><td></td></tr>
+      <tr data-default="2"><td>EIN</td><td>IRS</td><td>Free</td><td>LLC</td><td></td><td></td></tr>
+      <tr><td>SC Retail License (sales tax)</td><td>SC Dept of Revenue, on MyDORWAY</td><td>$50</td><td>EIN</td><td></td><td></td></tr>
+      <tr><td>Employer withholding registration</td><td>SC Dept of Revenue, on MyDORWAY</td><td>Free</td><td>EIN</td><td></td><td></td></tr>
+      <tr><td>Zoning approval</td><td>Horry County Planning and Zoning, 843-915-5340</td><td>Small or none</td><td>The address</td><td></td><td></td></tr>
+      <tr data-default="1"><td>Signed lease</td><td>Landlord</td><td>Rent</td><td>Zoning approval, landlord questions below</td><td></td><td></td></tr>
+      <tr><td>Retail Food Establishment Permit</td><td>SC Dept of Agriculture (not DHEC anymore)</td><td>Annual fee, varies</td><td>Signed lease, menu, equipment list</td><td></td><td></td></tr>
+      <tr><td>Hood and fire suppression inspection</td><td>Licensed hood company, then fire marshal</td><td>About $150 to $400</td><td>Signed lease</td><td></td><td></td></tr>
+      <tr><td>Horry County business license</td><td>Horry County Treasurer, 843-915-5620</td><td>Based on projected sales</td><td>Zoning approval</td><td></td><td></td></tr>
+      <tr><td>Hospitality fee account</td><td>Horry County Treasurer, 843-915-5620</td><td>Free to open, then 2.5% of food and drink sales</td><td>Business license</td><td></td><td></td></tr>
+      <tr><td>Beer and wine permit (On-Premises, PBW)</td><td>SC Dept of Revenue, Alcohol Beverage Licensing, 803-898-5864</td><td>$300 filing plus $600 for two years</td><td>Signed lease, landlord signature, background check on Lauren, newspaper ad 3 weeks in a row</td><td></td><td></td></tr>
+      <tr><td>ServSafe Manager certificate (Mikey)</td><td>ServSafe</td><td>About $180</td><td>Nothing</td><td></td><td></td></tr>
+      <tr><td>Insurance: general liability, liquor liability, property, workers comp (required at 4 or more employees)</td><td>Insurance agent</td><td>Get quotes</td><td>Signed lease</td><td></td><td></td></tr>
+      <tr><td>SC unemployment registration</td><td>SC Dept of Employment and Workforce</td><td>Free</td><td>First hire</td><td></td><td></td></tr>
+      <tr><td>Music license (only if playing music)</td><td>Soundtrack, or ASCAP and BMI</td><td>About $40 a month</td><td>Opening</td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">On Sundays: if you plan to open Sundays, call Alcohol Beverage Licensing at 803-898-5864 and ask whether unincorporated Horry County allows Sunday on-premises beer and wine sales. If not, you need the 7 Day permit instead ($300 filing plus $2,200 for two years). Closed Sundays, stick with PBW.</div>
+</section>
+
+<section>
+  <h2>Ask the landlord or old owner</h2>
+  <p>If closing is already done, ask anyway. These are the things that cost money or weeks after you move in.</p>
+  <ul class="checks" data-group="landlord">
+    <li><input type="checkbox" id="l1"><label for="l1">Hood and fire suppression: the date on the last inspection tag. It needs inspecting every six months, and the fire marshal will check it.</label></li>
+    <li><input type="checkbox" id="l2"><label for="l2">Grease trap: when it was last pumped, and whether it passed.</label></li>
+    <li><input type="checkbox" id="l3"><label for="l3">Equipment: who owns it, whether it's included, and who pays to fix or replace it. Get a written list attached to the lease.</label></li>
+    <li><input type="checkbox" id="l4"><label for="l4">Liens: whether any equipment is still owed to the old owner's lender or a supplier.</label></li>
+    <li><input type="checkbox" id="l5"><label for="l5">The last health inspection report, and any open violations tied to the space.</label></li>
+    <li><input type="checkbox" id="l6"><label for="l6">A copy of the old beer and wine permit, and whether it's still valid.</label></li>
+    <li><input type="checkbox" id="l7"><label for="l7">Landlord will sign the beer and wine application (the state requires it). Put this in the lease.</label></li>
+    <li><input type="checkbox" id="l8"><label for="l8">Why the last restaurant closed.</label></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Can the health permit transfer?</h2>
+  <p>No, the food permit doesn't transfer to a new owner, so R &amp; R Lunchbox applies new. It's much easier than a brand new restaurant though: the kitchen is already built, so it's mostly a menu and equipment review plus a pre-opening inspection. The health permit also moved from DHEC to the SC Department of Agriculture, so apply through <a href="https://agriculture.sc.gov/retail-food-safety/" target="_blank" rel="noopener">SCDA Retail Food Safety</a>.</p>
+  <p>The beer and wine permit is where the old restaurant helps: if their permit is still valid, you can get a temporary permit to sell for up to 120 days while yours processes.</p>
+</section>
+
+<section>
+  <h2>After you open</h2>
+  <p>Recurring dates to put on the calendar so nothing lapses.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>What</th><th>When</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>State sales tax return</td><td>Monthly, by the 20th</td><td>MyDORWAY</td></tr>
+      <tr><td>Horry County hospitality fee (2.5% of food and drink sales)</td><td>Monthly, by the 20th</td><td>Horry County Treasurer</td></tr>
+      <tr><td>Horry County business license renewal</td><td>Every year by May 1</td><td>Horry County Treasurer</td></tr>
+      <tr><td>Beer and wine permit renewal</td><td>Every two years</td><td>MyDORWAY</td></tr>
+      <tr><td>Hood and fire suppression service</td><td>Every six months</td><td>Hood company</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="margin-top:12px">Price the menu with about 10.5% total tax on food and drink (state, county and hospitality fee combined).</p>
+</section>
+
+<section>
+  <h2>Notes</h2>
+  <p>Anything worth keeping: who you talked to, confirmation numbers, what's waiting on whom.</p>
+  <textarea id="notes" class="sync-text" rows="8" placeholder="Type here. It saves as you go."></textarea>
+</section>
+
+<section>
+  <h2>Links</h2>
+  <ul>
+    <li><a href="https://agriculture.sc.gov/retail-food-safety/" target="_blank" rel="noopener">SCDA Retail Food Safety</a></li>
+    <li><a href="https://dor.sc.gov/mydorway" target="_blank" rel="noopener">MyDORWAY (SC Dept of Revenue)</a></li>
+    <li><a href="https://www.horrycountysc.gov/departments/treasurer/business-license/" target="_blank" rel="noopener">Horry County Business License</a></li>
+    <li><a href="https://horrycountysc.gov/departments/treasurer/hospitality-fee/" target="_blank" rel="noopener">Horry County Hospitality Fee</a></li>
+  </ul>
+</section>
+
+</main>
+<footer>Questions? Text or call Shane.</footer>
+
+<script>
+(function () {
+  var slug = location.pathname.replace(/\/+$/, "").split("/").pop();
+  var API = "/api/p/" + encodeURIComponent(slug) + "/state";
+  var syncEl = document.getElementById("sync");
+  var state = {};
+  var pending = {};
+  var timer = null;
+  var inflight = false;
+
+  function setSync(text, err) {
+    syncEl.textContent = text;
+    syncEl.className = err ? "sync err" : "sync";
+  }
+
+  // Every editable control on the page, keyed by a stable id.
+  var controls = [];
+
+  document.querySelectorAll(".checks input[type=checkbox]").forEach(function (cb) {
+    controls.push({
+      key: cb.id, el: cb,
+      get: function () { return cb.checked; },
+      set: function (v) { cb.checked = !!v; },
+      fallback: false
+    });
+  });
+
+  var opts = ["Not started", "In progress", "Done"];
+  document.querySelectorAll("#checklist tr").forEach(function (tr, i) {
+    var cells = tr.children;
+    var sel = document.createElement("select");
+    opts.forEach(function (o, n) {
+      var op = document.createElement("option"); op.value = String(n); op.textContent = o; sel.appendChild(op);
+    });
+    function paint() { sel.className = sel.value === "2" ? "done" : sel.value === "1" ? "prog" : ""; }
+    cells[4].appendChild(sel);
+    controls.push({
+      key: "s" + i, el: sel,
+      get: function () { return sel.value; },
+      set: function (v) { sel.value = String(v); paint(); },
+      fallback: tr.getAttribute("data-default") || "0",
+      after: paint
+    });
+
+    var note = document.createElement("input");
+    note.type = "text"; note.className = "note-in"; note.placeholder = "Add a note";
+    cells[5].appendChild(note);
+    controls.push({
+      key: "n" + i, el: note, text: true,
+      get: function () { return note.value; },
+      set: function (v) { note.value = v || ""; },
+      fallback: ""
+    });
+  });
+
+  var notes = document.getElementById("notes");
+  controls.push({
+    key: "notes", el: notes, text: true,
+    get: function () { return notes.value; },
+    set: function (v) { notes.value = v || ""; },
+    fallback: ""
+  });
+
+  function apply(fromServer) {
+    controls.forEach(function (c) {
+      if (pending.hasOwnProperty(c.key)) return;          // our unsaved edit wins
+      if (c.text && document.activeElement === c.el) return; // don't yank text mid-typing
+      var v = fromServer.hasOwnProperty(c.key) ? fromServer[c.key] : c.fallback;
+      c.set(v);
+    });
+  }
+
+  function flush() {
+    timer = null;
+    if (inflight) { schedule(400); return; }
+    var patch = pending; pending = {};
+    if (!Object.keys(patch).length) return;
+    inflight = true;
+    setSync("Saving...");
+    fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patch: patch })
+    }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (data) {
+      state = data.state || {};
+      setSync("All changes saved");
+    }).catch(function () {
+      // put the edits back so they retry
+      Object.keys(patch).forEach(function (k) { if (!pending.hasOwnProperty(k)) pending[k] = patch[k]; });
+      setSync("Couldn't save, retrying...", true);
+      schedule(4000);
+    }).then(function () { inflight = false; });
+  }
+
+  function schedule(ms) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(flush, ms);
+  }
+
+  controls.forEach(function (c) {
+    var evt = c.text ? "input" : "change";
+    c.el.addEventListener(evt, function () {
+      if (c.after) c.after();
+      pending[c.key] = c.get();
+      setSync("Saving...");
+      schedule(c.text ? 700 : 150);
+    });
+    if (c.text) c.el.addEventListener("blur", function () { if (Object.keys(pending).length) schedule(0); });
+  });
+
+  function load(first) {
+    return fetch(API, { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (data) {
+      state = data.state || {};
+      apply(state);
+      if (first) setSync("All changes saved");
+    }).catch(function () {
+      if (first) { apply({}); setSync("Couldn't load saved updates. Check your connection and refresh.", true); }
+    });
+  }
+
+  load(true);
+  setInterval(function () { if (!document.hidden && !inflight && !Object.keys(pending).length) load(false); }, 10000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) load(false); });
+  window.addEventListener("beforeunload", function (e) {
+    if (Object.keys(pending).length) { flush(); e.preventDefault(); }
+  });
+})();
+</script>
+</body>
+</html>
