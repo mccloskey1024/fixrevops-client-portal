@@ -5,5 +5,5 @@ import { MAC_TRANSPORT_HTML } from './mac-transport'
 
 export const SHARED_PAGES: Record<string, { title: string; html: string }> = {
   'rr-lunchbox-lidrhvgm': { title: 'R & R Lunchbox: Opening Packet', html: RR_LUNCHBOX_HTML },
-  'mac-transport-5zuz5hob': { title: 'Mac Transport: Startup Packet and Tracker', html: MAC_TRANSPORT_HTML },
+  'mac-transport-5zuz5hob': { title: 'Transport Tracker', html: MAC_TRANSPORT_HTML },
 }
